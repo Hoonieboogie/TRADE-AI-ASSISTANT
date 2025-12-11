@@ -29,6 +29,7 @@ export interface DocumentStatus {
   message: string;
   progress: number;
   s3_url?: string;
+  converted_pdf_url?: string;
   total_chunks?: number;
   error?: string;
 }
@@ -224,6 +225,6 @@ export async function uploadDocumentFlow(
 
   } catch (error) {
     callbacks.onError(error instanceof Error ? error.message : '업로드 실패');
-    return () => {}; // 빈 함수 반환
+    return () => { }; // 빈 함수 반환
   }
 }

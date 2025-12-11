@@ -223,6 +223,27 @@ class Document(models.Model):
         help_text="에러 메시지"
     )
 
+    # 텍스트 미리보기용 (DOCX, HWP 등)
+    extracted_text = models.TextField(
+        null=True,
+        blank=True,
+        help_text="추출된 텍스트 (미리보기용)"
+    )
+
+    # 변환된 PDF (미리보기용)
+    converted_pdf_key = models.CharField(
+        max_length=500,
+        null=True,
+        blank=True,
+        help_text="변환된 PDF S3 Key"
+    )
+    converted_pdf_url = models.URLField(
+        max_length=1000,
+        null=True,
+        blank=True,
+        help_text="변환된 PDF S3 URL"
+    )
+
     # RAG용 벡터 ID
     qdrant_point_ids = models.JSONField(
         default=list,
