@@ -22,6 +22,7 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
   const [showMyPageModal, setShowMyPageModal] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SavedDocument | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
 
   // 외부 클릭 시 드롭다운 닫기
@@ -48,6 +49,13 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
   const confirmLogout = () => {
     onLogout();
     setShowLogoutConfirm(false);
+  };
+
+  const confirmDelete = () => {
+    if (deleteTarget) {
+      onDeleteDocument(deleteTarget.id);
+      setDeleteTarget(null);
+    }
   };
 
   // 필터링 및 검색 로직
@@ -264,7 +272,7 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteDocument(doc.id);
+                          setDeleteTarget(doc);
                         }}
                         className="text-gray-400 hover:text-red-600 text-sm transition-colors font-medium p-2 rounded-full hover:bg-red-50"
                         title="삭제"
@@ -368,6 +376,42 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg transition-colors font-medium"
               >
                 로그아웃
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[200]"
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">작업을 삭제하시겠습니까?</h2>
+            <p className="text-gray-500 mb-2 font-medium">{deleteTarget.name}</p>
+            <p className="text-gray-400 text-sm mb-8">
+              삭제된 작업은 복구할 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-lg transition-colors font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg transition-colors font-medium"
+              >
+                삭제
               </button>
             </div>
           </div>
