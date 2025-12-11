@@ -1,6 +1,6 @@
 import { FileText, Plus, ChevronDown, LogOut, CheckCircle, Clock, Search, Filter, User, Sparkles, Trash2 } from 'lucide-react';
 import { PageType, SavedDocument } from '../App';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PasswordChangeModal from './document-creation/modals/PasswordChangeModal';
 
 interface MainPageProps {
@@ -22,6 +22,24 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
   const [showMyPageModal, setShowMyPageModal] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+
+  // 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setShowStatusFilter(false);
+      }
+    };
+
+    if (showStatusFilter) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showStatusFilter]);
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
@@ -107,7 +125,7 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
         {/* Filter and Search Section */}
         <div className="mb-4 flex items-center gap-4">
           {/* Status Filter */}
-          <div className="relative">
+          <div className="relative" ref={filterRef}>
             <button
               onClick={() => setShowStatusFilter(!showStatusFilter)}
               className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
