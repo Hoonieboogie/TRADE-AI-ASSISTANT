@@ -4,8 +4,6 @@ AWS S3 유틸리티 함수
 문서 업로드를 위한 presigned URL 생성 및 S3 관련 작업을 처리합니다.
 """
 
-import os
-import uuid
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -35,7 +33,10 @@ class S3Manager:
     def generate_presigned_upload_url(
         self,
         file_name: str,
-        file_type: str = 'application/pdf',
+        file_type: str,
+        emp_no: str,
+        trade_id: int,
+        doc_type: str,
         expiration: int = 3600
     ) -> dict:
         """
@@ -43,7 +44,10 @@ class S3Manager:
 
         Args:
             file_name: 원본 파일명
-            file_type: MIME 타입 (기본값: application/pdf)
+            file_type: MIME 타입
+            emp_no: 사원번호 (사용자별 폴더 구분용)
+            trade_id: 거래 ID (거래별 폴더 구분용)
+            doc_type: 문서 유형 (offer, contract)
             expiration: URL 만료 시간(초) (기본값: 3600 = 1시간)
 
         Returns:
@@ -54,10 +58,8 @@ class S3Manager:
             }
         """
         try:
-            # 고유한 파일명 생성 (UUID + 원본 파일명)
-            file_extension = os.path.splitext(file_name)[1]
-            unique_filename = f"{uuid.uuid4()}{file_extension}"
-            s3_key = f"documents/{unique_filename}"
+            # 계층적 S3 키 생성: documents/{emp_no}/{trade_id}/{doc_type}/{filename}
+            s3_key = f"documents/{emp_no}/{trade_id}/{doc_type}/{file_name}"
 
             # Presigned URL 생성 (PUT 요청용)
             upload_url = self.s3_client.generate_presigned_url(
