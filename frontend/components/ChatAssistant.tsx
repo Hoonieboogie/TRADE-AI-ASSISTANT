@@ -76,6 +76,7 @@ export default function ChatAssistant({ currentStep, onClose, editorRef, onApply
   const [history, setHistory] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // 현재 step에 해당하는 doc_id 가져오기 (getDocId 함수 사용)
   const currentDocId = useMemo(() => {
@@ -297,6 +298,45 @@ ${documentContent}
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // textarea 자동 높이 조절 (사이드바 높이의 1/3까지)
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      // 사이드바(부모 컨테이너) 높이의 1/3을 최대 높이로 설정
+      const container = textarea.closest('.h-full') as HTMLElement;
+      const maxHeight = container ? container.clientHeight / 3 : 200;
+
+      textarea.style.height = 'auto';
+      const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = `${newHeight}px`;
+    }
+  };
+
+  // textarea 높이 리셋
+  const resetTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+    }
+  };
+
+  // 사이드바 너비 변경 시 textarea 높이 재조절
+  useEffect(() => {
+    const handleResize = () => {
+      if (input.trim()) {
+        adjustTextareaHeight();
+      }
+    };
+
+    // ResizeObserver로 부모 컨테이너 크기 변화 감지
+    const container = textareaRef.current?.closest('.h-full');
+    if (container) {
+      const resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(container);
+      return () => resizeObserver.disconnect();
+    }
+  }, [input]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -388,6 +428,7 @@ ${documentContent}
     setMessages(prev => [...prev, userMessage]);
     const currentInput = input;
     setInput('');
+    resetTextareaHeight();
     setIsLoading(true);
 
     const documentContent = editorRef.current?.getContent() || '';
@@ -793,19 +834,29 @@ ${documentContent}
       {/* Input */}
       <div className="p-4 bg-white/80 backdrop-blur-md relative z-20">
         <form onSubmit={handleSubmit} className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
-          <input
-            type="text"
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
+          <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              adjustTextareaHeight();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
             placeholder="업무에 관한 무엇이든 물어보고 요청하세요..."
-            className="w-full px-6 py-3.5 pr-14 rounded-full border border-gray-200 bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.03)] focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 focus:shadow-[0_4px_20px_rgba(37,99,235,0.1)] transition-all duration-300 text-sm relative z-10 placeholder:text-gray-400"
+            rows={1}
+            className="w-full px-6 py-3.5 pr-14 rounded-2xl border border-gray-200 bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.03)] focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 focus:shadow-[0_4px_20px_rgba(37,99,235,0.1)] transition-all duration-300 text-sm relative z-10 placeholder:text-gray-400 resize-none overflow-y-auto"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-blue-200 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 z-20"
+            className="absolute right-2 bottom-2 w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-blue-200 hover:scale-105 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 z-20"
           >
             <Send className="w-4 h-4 ml-0.5" />
           </button>
