@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Commercial Invoice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            font-size: 10pt;
+            line-height: 1.4;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 24pt;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-decoration: underline;
+        }
+
+        .invoice-container {
+            border: 2px solid #000;
+        }
+
+        .invoice-row {
+            display: flex;
+            border-bottom: 1px solid #000;
+        }
+
+        .invoice-row:last-child {
+            border-bottom: none;
+        }
+
+        .invoice-col {
+            padding: 0;
+            border-right: 1px solid #000;
+            position: relative;
+        }
+
+        .invoice-col:last-child {
+            border-right: none;
+        }
+
+        .label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 0;
+            font-size: 9pt;
+            background-color: #f0f0f0;
+            padding: 5px;
+            border-bottom: 1px solid #000;
+        }
+
+        .content-placeholder {
+            color: #999;
+            font-style: italic;
+        }
+
+        .content-area {
+            padding: 5px;
+        }
+
+        /* Main Goods Table */
+        .goods-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0;
+        }
+
+        .goods-table th {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: center;
+            background-color: #f0f0f0;
+            font-size: 9pt;
+        }
+
+        .goods-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            vertical-align: top;
+            height: 300px;
+            /* Fixed height for the goods section */
+        }
+
+        .footer-section {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>COMMERCIAL INVOICE</h1>
+
+    <div class="invoice-container">
+        <!-- Row 1: Shipper & Invoice Details -->
+        <div class="invoice-row">
+            <div class="invoice-col" style="width: 50%;">
+                <span class="label">Shipper / Exporter</span>
+                <div class="content-area">
+                    [seller_name]<br>
+                    [seller_address]<br>
+                    [seller_city], [seller_country]
+                    <br><br><br>
+                </div>
+            </div>
+            <div class="invoice-col" style="width: 50%;">
+                <div>
+                    <span class="label">No. & Date of Invoice</span>
+                    <div class="content-area">[ci_no] / [ci_date]</div>
+                </div>
+                <div>
+                    <span class="label">No. & Date of L/C</span>
+                    <div class="content-area">[l/c_no] / [l/c_date]</div>
+                </div>
+                <div>
+                    <span class="label">L/C Issuing Bank</span>
+                    <div class="content-area">[l/c_bank]</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Consignee & Remarks -->
+        <div class="invoice-row">
+            <div class="invoice-col" style="width: 50%;">
+                <span class="label">Consignee</span>
+                <div class="content-area">
+                    [buyer_name]<br>
+                    [buyer_address]<br>
+                    [buyer_city], [buyer_country]
+                    <br><br>
+                </div>
+            </div>
+            <div class="invoice-col" style="width: 50%;">
+                <span class="label">Remarks</span>
+                <div class="content-area">
+                    [remarks]<br>
+                    [incoterms][incoterms_port]
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3: Notify Party -->
+        <div class="invoice-row">
+            <div class="invoice-col" style="width: 100%;">
+                <span class="label">Notify Party</span>
+                <div class="content-area">
+                    [buyer_name]<br>
+                    [buyer_address]<br>
+                    (Same as Consignee)
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: Shipping Details -->
+        <div class="invoice-row">
+            <div class="invoice-col" style="width: 25%;">
+                <span class="label">Port of Loading</span>
+                <div class="content-area">[pol]</div>
+            </div>
+            <div class="invoice-col" style="width: 25%;">
+                <span class="label">Final Destination</span>
+                <div class="content-area">[final_destination]</div>
+            </div>
+            <div class="invoice-col" style="width: 25%;">
+                <span class="label">Carrier</span>
+                <div class="content-area">[carrier]</div>
+            </div>
+            <div class="invoice-col" style="width: 25%;">
+                <span class="label">Sailing on or about</span>
+                <div class="content-area">[shipment_deadline]</div>
+            </div>
+        </div>
+
+        <!-- Row 5: Goods Table -->
+        <div class="invoice-row" style="display: block; padding: 0;">
+            <table class="goods-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="width: 15%;">Marks and Numbers</th>
+                        <th rowspan="2" style="width: 30%;">Description of Goods</th>
+                        <th colspan="3" style="width: 30%;">Quantity</th>
+                        <th rowspan="2" style="width: 12.5%;">Unit Price</th>
+                        <th rowspan="2" style="width: 12.5%;">Amount</th>
+                    </tr>
+                    <tr>
+                        <th style="width: 8.33%;">EA/BOX</th>
+                        <th style="width: 8.33%;">Box</th>
+                        <th style="width: 8.33%;">Total EA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            [marks_and_numbers]
+                        </td>
+                        <td>
+                            [description]
+                        </td>
+                        <td style="text-align: center;">
+                            [ea_box]
+                        </td>
+                        <td style="text-align: center;">
+                            [box]
+                        </td>
+                        <td style="text-align: center;">
+                            [quantity]
+                        </td>
+                        <td style="text-align: right;">
+                            [unit_price]/</br>[currency]
+                        </td>
+                        <td style="text-align: right;">
+                            [sub_total_price][currency]
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Row 6: Totals -->
+        <div class="invoice-row" style="background-color: #f0f0f0; font-weight: bold;">
+            <div class="invoice-col" style="width: 50%; text-align: right; border-right: none;">
+                TOTAL :
+            </div>
+            <div class="invoice-col" style="width: 8.33%; text-align: center; border-right: none;">
+                [ea/box]
+            </div>
+            <div class="invoice-col" style="width: 8.33%; text-align: center; border-right: none;">
+                [box]
+            </div>
+            <div class="invoice-col" style="width: 8.33%; text-align: center; border-right: none;">
+                [quantity]
+            </div>
+            <div class="invoice-col" style="width: 25%; text-align: right;">
+                [total_price][currency]
+            </div>
+        </div>
+
+        <!-- Row 7: Signature -->
+        <div class="invoice-row" style="border-bottom: none;">
+            <div class="invoice-col" style="width: 100%; padding: 40px 20px 20px 20px; text-align: right;">
+                <span style="font-weight: bold; font-size: 9pt;">Signed by :</span>
+                <br><br>
+                ____________________________________<br>
+                Authorized Signature
+            </div>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

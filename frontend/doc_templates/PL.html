@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Packing List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 60px 80px;
+            font-size: 11pt;
+            line-height: 1.3;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 5px;
+            font-size: 24pt;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .title-underline {
+            width: 300px;
+            margin: 0 auto 40px;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            height: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td,
+        th {
+            border: 1px solid #000;
+            padding: 5px;
+            vertical-align: top;
+        }
+
+        /* Header Table Specifics */
+        .header-table {
+            border-top: 2px solid #000;
+            /* Thick top border */
+        }
+
+        .header-table td {
+            height: 30px;
+        }
+
+        .label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 10pt;
+        }
+
+        /* Items Table Specifics */
+        .items-table {
+            border-top: 2px solid #000;
+            /* Thick border separating header and items */
+            border-bottom: 2px solid #000;
+            /* Thick bottom border */
+            margin-top: -1px;
+            /* Overlap borders to avoid double thickness */
+        }
+
+        .items-table th {
+            text-align: center;
+            font-weight: bold;
+            padding: 8px 2px;
+            background-color: #fff;
+            font-size: 10pt;
+        }
+
+        .items-table td {
+            text-align: center;
+            height: 24px;
+            border-bottom: 1px dashed #000;
+            /* Dashed row lines */
+        }
+
+        /* Vertical borders for items table are handled by default td border */
+
+        /* Remove bottom border for the last row of items to avoid conflict with table bottom */
+        .items-table tbody tr:last-child td {
+            border-bottom: 1px solid #000;
+        }
+
+        /* Footer Table */
+        .footer-table td {
+            border: none;
+            padding-top: 10px;
+        }
+
+        .footer-info {
+            margin-top: 40px;
+            font-weight: bold;
+        }
+
+        .signature-section {
+            margin-top: 60px;
+            text-align: right;
+            font-weight: bold;
+            padding-right: 50px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>PACKING LIST</h1>
+    <div class="title-underline"></div>
+
+    <table class="header-table">
+        <!-- Row 1 -->
+        <tr>
+            <td style="width: 50%;" rowspan="2">
+                <span class="label">Shipper / Exporter</span>
+                [seller_name]<br>
+                [seller_address]
+            </td>
+            <td style="width: 50%;">
+                <span class="label">No. &amp; Date of Invoice</span>
+                [pl_no] / [pl_date]
+            </td>
+        </tr>
+        <!-- Row 2 -->
+        <tr>
+            <td>
+                <span class="label">No. &amp; Date of L/C</span>
+                [l/c_no] / [l/c_date]
+            </td>
+        </tr>
+        <!-- Row 3 -->
+        <tr>
+            <td style="height: 50px;">
+                <span class="label">For Account &amp; Risk of Messrs.</span>
+                [buyer_name]<br>
+                [buyer_address]
+            </td>
+            <td>
+                <span class="label">Remarks</span>
+                [remarks]
+            </td>
+        </tr>
+        <!-- Row 4 -->
+        <tr>
+            <td style="height: 50px;">
+                <span class="label">Notify party</span>
+                [pl_notify_party]<br>
+                [pl_notify_party_address]
+            </td>
+            <td rowspan="3"></td> <!-- Empty right column for remaining rows -->
+        </tr>
+        <!-- Row 5: Split Left Column -->
+        <tr>
+            <td style="padding: 0; height: 50px;">
+                <table style="width: 100%; height: 100%; border: none;">
+                    <tr>
+                        <td style="width: 50%; border: none; border-right: 1px solid #000;">
+                            <span class="label">Port of loading</span>
+                            [pol]
+                        </td>
+                        <td style="width: 50%; border: none;">
+                            <span class="label">Final Destination</span>
+                            [final_destination]
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <!-- Row 6: Split Left Column -->
+        <tr>
+            <td style="padding: 0; height: 50px;">
+                <table style="width: 100%; height: 100%; border: none;">
+                    <tr>
+                        <td style="width: 50%; border: none; border-right: 1px solid #000;">
+                            <span class="label">Carrier</span>
+                            [carrier]
+                        </td>
+                        <td style="width: 50%; border: none;">
+                            <span class="label">Sailing on or about</span>
+                            [shipment_deadline]
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width: 30%;">Marks and Number of PKGS</th>
+                <th style="width: 35%;">Description of Goods</th>
+                <th style="width: 8%;">Q'ty</th>
+                <th style="width: 9%;">Net Weight</th>
+                <th style="width: 9%;">Gross Weight</th>
+                <th style="width: 9%;">Measurement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 20 Empty Rows -->
+            <tr>
+                <td>[marks_and_numbers]</td>
+                <td>[description]</td>
+                <td>[quantity]</td>
+                <td>[net_weight]</td>
+                <td>[gross_weight]</td>
+                <td>[measurement]</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table class="footer-table">
+        <tr>
+            <td style="width: 10%; text-align: right; font-weight: bold;">Total </td>
+            <td style="width: 20%; font-weight: bold;">[cartons]</td>
+            <td style="width: 35%; text-align: center; font-weight: bold;">Total</td>
+            <td style="width: 9%; text-align: center; font-weight: bold;">[total_net_weight]KG</td>
+            <td style="width: 9%; text-align: center; font-weight: bold;">[total_gross_weight]KG</td>
+            <td style="width: 9%; text-align: center; font-weight: bold;">[cbm]CBM</td>
+            <br>
+            
+        </tr>
+    </table>
+
+    <div class="signature-section">
+        Signed by [seller_name]
+    </div>
+
+    <div class="footer-info">
+        H.S Code: [hscode]<br>
+        Trade Terms : [incoterms] [incoterms_port] incoterms2020
+    </div>
+
+</body>
+
+</html>

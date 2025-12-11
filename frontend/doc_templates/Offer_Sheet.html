@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Offer Sheet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 60px 80px;
+            font-size: 12pt;
+            line-height: 1.5;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 10px;
+            margin-bottom: 60px;
+            font-size: 20pt;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .meta {
+            margin-bottom: 40px;
+        }
+
+        .meta-row {
+            margin-bottom: 2px;
+        }
+
+        .meta-label {
+            display: inline-block;
+            width: 120px;
+        }
+
+        .meta-label::after {
+            content: " :";
+        }
+
+        p {
+            margin: 0 0 25px 0;
+        }
+
+        .items-wrapper {
+            margin-top: 10px;
+            margin-bottom: 40px;
+        }
+
+        table.offer-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .offer-table th,
+        .offer-table td {
+            border: 1px solid #000;
+            padding: 6px 4px;
+            font-size: 11pt;
+        }
+
+        .offer-table th {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .offer-table td {
+            height: 24px;
+        }
+
+        .offer-table tfoot td {
+            border-top: 1px solid #000;
+            font-weight: bold;
+        }
+
+        .offer-table tfoot td.total-label {
+            text-align: right;
+        }
+
+        .detail-block {
+            margin-top: 40px;
+            margin-bottom: 60px;
+        }
+
+        .detail-row {
+            margin-bottom: 4px;
+        }
+
+        .detail-label {
+            display: inline-block;
+            width: 120px;
+        }
+
+        .detail-label::after {
+            content: " :";
+        }
+
+        .signature {
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+
+        .sign-line {
+            margin-top: 40px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #000;
+            height: 20px;
+        }
+
+        .appendix {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>OFFER SHEET</h1>
+    <h2 style="text-align: center; margin-bottom: 40px;">[seller_name]</h2>
+
+    <!-- 상단 정보 -->
+    <div class="meta">
+        <div class="meta-row">
+            <span class="meta-label">Date</span> [offer_date]
+        </div>
+        <div class="meta-row">
+            <span class="meta-label">Ref No.</span> [offer_no]
+        </div>
+        <div class="meta-row">
+            <span class="meta-label">MESSRS.</span> [buyer_name]
+        </div>
+    </div>
+
+    <p>We are pleased to offer you as follows;</p>
+
+    <!-- 아이템 테이블 -->
+    <div class="items-wrapper">
+        <table class="offer-table">
+            <thead>
+                <tr>
+                    <th style="width: 12%;">Item No.</th>
+                    <th style="width: 18%;">HS-CODE</th>
+                    <th style="width: 30%;">Product</th>
+                    <th style="width: 10%;">Q'ty</th>
+                    <th style="width: 15%;">Unit Price</th>
+                    <th style="width: 15%;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="height: 400px;">
+                    <td style="vertical-align: top;">[item_no]</td>
+                    <td style="vertical-align: top;">[hscode]</td>
+                    <td style="vertical-align: top;">[description]</td>
+                    <td style="vertical-align: top;">[quantity]</td>
+                    <td style="vertical-align: top;">[unit_price]</td>
+                    <td style="vertical-align: top;">[sub_total_price]</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="total-label" style="text-align: center;">TOTAL :</td>
+                    <td>[total_price]</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <!-- 하단 조건들 -->
+    <div class="detail-block">
+        <div class="detail-row">
+            <span class="detail-label">Country of Origin</span> [coo]
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Shipment</span> [shipment_term]
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Inspection</span> [inspection]
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Payment</span> [payment_term]
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Validity</span> [offer_validity]
+        </div>
+        <div class="detail-row">
+            <span class="detail-label">Remarks</span> [remarks]
+        </div>
+    </div>
+
+    <div class="signature">
+        Sincerely yours,<br><br>
+        [seller_name]
+    </div>
+
+    <div class="sign-line"></div>
+
+    <div class="appendix">
+        APPENDIX
+    </div>
+
+</body>
+
+</html>

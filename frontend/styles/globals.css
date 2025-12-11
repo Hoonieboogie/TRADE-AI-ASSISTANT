@@ -1,0 +1,942 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-size: 16px;
+  --background: #ffffff;
+  --foreground: oklch(0.145 0 0);
+  --card: #ffffff;
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #030213;
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.0058 264.53);
+  --secondary-foreground: #030213;
+  --muted: #ececf0;
+  --muted-foreground: #717182;
+  --accent: #e9ebef;
+  --accent-foreground: #030213;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: transparent;
+  --input-background: #f3f3f5;
+  --switch-background: #cbced4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #030213;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Slide in from right animation for chat panel */
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slideInFromRight {
+  animation: slideInFromRight 0.5s ease-in-out;
+}
+
+/* 파도처럼 흐르는 그라데이션 배경 */
+@keyframes waveFlow {
+  0% {
+    background-position: 0% 0%, 100% 100%, 0% 50%, 100% 0%, 50% 100%;
+  }
+
+  25% {
+    background-position: 50% 100%, 0% 50%, 100% 0%, 50% 100%, 0% 0%;
+  }
+
+  50% {
+    background-position: 100% 50%, 50% 0%, 0% 100%, 0% 50%, 100% 50%;
+  }
+
+  75% {
+    background-position: 50% 0%, 100% 50%, 50% 50%, 100% 100%, 0% 50%;
+  }
+
+  100% {
+    background-position: 0% 0%, 100% 100%, 0% 50%, 100% 0%, 50% 100%;
+  }
+}
+
+.animate-wave-gradient {
+  background:
+    radial-gradient(ellipse 90% 60% at 10% 30%, rgba(147, 197, 253, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 50% at 80% 20%, rgba(96, 165, 250, 0.35) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 55% at 30% 70%, rgba(191, 219, 254, 0.45) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 45% at 70% 80%, rgba(59, 130, 246, 0.25) 0%, transparent 50%),
+    radial-gradient(ellipse 75% 50% at 50% 50%, rgba(147, 197, 253, 0.3) 0%, transparent 55%),
+    linear-gradient(180deg, #dbeafe 0%, #eff6ff 40%, #f0f9ff 100%);
+  background-size: 200% 200%, 200% 200%, 200% 200%, 200% 200%, 200% 200%, 100% 100%;
+  animation: waveFlow 6s ease-in-out infinite;
+}
+
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Document Editor Styles */
+.editable-field {
+  display: inline-block;
+  min-width: 200px;
+  min-height: 1em;
+  border-bottom: 1px solid #ccc;
+  padding: 0 4px 2px 4px;
+  background-color: #fafafa;
+  vertical-align: baseline;
+  line-height: 1;
+  position: relative;
+  top: 0;
+}
+
+.editable-field:focus {
+  outline: 2px solid #3b82f6;
+  background-color: #fff;
+}
+
+.error-field {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  padding: 4px;
+  border-radius: 2px;
+}
+
+/* Custom Scrollbar Styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #e5e7eb #f9fafb;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f9fafb;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #e5e7eb;
+  border-radius: 4px;
+  border: 2px solid #f9fafb;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #d1d5db;
+}
+
+/* --- Offer Sheet Styles --- */
+.offer-sheet-wrapper {
+  font-family: Arial, sans-serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  padding: 20px;
+}
+
+.offer-sheet-wrapper h1 {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 60px;
+  font-size: 20pt;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.offer-sheet-wrapper .meta {
+  margin-bottom: 40px;
+}
+
+.offer-sheet-wrapper .meta-row {
+  margin-bottom: 2px;
+}
+
+.offer-sheet-wrapper .meta-label {
+  display: inline-block;
+  width: 120px;
+}
+
+.offer-sheet-wrapper .meta-label::after {
+  content: " :";
+}
+
+.offer-sheet-wrapper .items-wrapper {
+  margin-top: 10px;
+  margin-bottom: 40px;
+}
+
+.offer-sheet-wrapper table.offer-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.offer-sheet-wrapper .offer-table th,
+.offer-sheet-wrapper .offer-table td {
+  border: 1px solid #000;
+  padding: 6px 4px;
+  font-size: 11pt;
+}
+
+.offer-sheet-wrapper .offer-table th {
+  text-align: center;
+  font-weight: bold;
+}
+
+.offer-sheet-wrapper .offer-table td {
+  height: 24px;
+}
+
+.offer-sheet-wrapper .offer-table tfoot td {
+  border-top: 1px solid #000;
+  font-weight: bold;
+}
+
+.offer-sheet-wrapper .offer-table tfoot td.total-label {
+  text-align: right;
+}
+
+.offer-sheet-wrapper .detail-block {
+  margin-top: 40px;
+  margin-bottom: 60px;
+}
+
+.offer-sheet-wrapper .detail-row {
+  margin-bottom: 4px;
+}
+
+.offer-sheet-wrapper .detail-label {
+  display: inline-block;
+  width: 120px;
+}
+
+.offer-sheet-wrapper .detail-label::after {
+  content: " :";
+}
+
+.offer-sheet-wrapper .signature {
+  margin-top: 40px;
+  margin-bottom: 40px;
+}
+
+.offer-sheet-wrapper .sign-line {
+  margin-top: 40px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #000;
+  height: 20px;
+}
+
+.offer-sheet-wrapper .appendix {
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+/* --- Purchase Order Styles --- */
+.po-wrapper {
+  font-family: "Times New Roman", serif;
+  /* max-width: 900px; Removed to match Offer Sheet */
+  margin: 0 auto;
+  background: #fff;
+  padding: 20px;
+  color: #000;
+}
+
+.po-header-top {
+  display: none;
+  /* Removed as not in reference image */
+}
+
+.po-company {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.po-company-name {
+  font-size: 28px;
+  /* Larger font for Buyer Name */
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}
+
+.po-company-info {
+  font-size: 11pt;
+  line-height: 1.4;
+  color: #000;
+}
+
+.po-title {
+  text-align: center;
+  font-size: 18pt;
+  font-weight: bold;
+  margin: 40px 0 60px 0;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.po-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11pt;
+  margin-bottom: 40px;
+  align-items: flex-end;
+}
+
+.po-meta-block {
+  line-height: 1.5;
+}
+
+.po-meta-block p {
+  margin: 0;
+}
+
+.po-date-ref {
+  text-align: right;
+  padding-right: 300px;
+  /* Increased padding drastically to 300px as requested */
+}
+
+.po-body {
+  font-size: 11pt;
+  line-height: 1.6;
+  margin-bottom: 30px;
+}
+
+.po-terms {
+  font-size: 11pt;
+  margin-top: 20px;
+  margin-bottom: 50px;
+}
+
+.po-terms .term-row {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: baseline;
+}
+
+.po-terms .term-label {
+  width: 150px;
+  /* Fixed width for labels */
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+
+
+.po-terms .term-value {
+  flex: 1;
+}
+
+.po-sign {
+  font-size: 11pt;
+  margin-top: 60px;
+}
+
+.po-sign-title {
+  margin-bottom: 60px;
+  font-weight: bold;
+}
+
+.po-sign-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.po-sign-table td {
+  vertical-align: top;
+  width: 50%;
+}
+
+.po-sign-line {
+  border-top: 1px solid #000;
+  width: 80%;
+  margin-top: 50px;
+  padding-top: 5px;
+}
+
+.po-sign-name {
+  display: block;
+  font-weight: normal;
+}
+
+.po-sign-role {
+  display: block;
+}
+
+/* --- Proforma Invoice Styles --- */
+.pi-wrapper {
+  font-family: Arial, sans-serif;
+  font-size: 12pt;
+  line-height: 1.3;
+  padding: 20px;
+  background: #fff;
+  color: #000;
+  /* max-width: 1000px; Removed to match Offer Sheet */
+  margin: 0 auto;
+}
+
+.pi-wrapper h1 {
+  text-align: left;
+  margin-top: 0;
+  margin-bottom: 5px;
+  font-size: 24pt;
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.pi-wrapper .header-line {
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+  height: 3px;
+  margin-bottom: 20px;
+}
+
+.pi-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0;
+  table-layout: fixed;
+}
+
+.pi-wrapper th,
+.pi-wrapper td {
+  border: 2px solid #000;
+  padding: 6px 8px;
+  vertical-align: top;
+  font-size: 11pt;
+}
+
+.pi-wrapper .section-header {
+  background-color: #D3D3D3 !important;
+  font-weight: bold;
+  padding: 6px 8px;
+  font-size: 11pt;
+}
+
+.pi-wrapper .content-cell {
+  height: 50px;
+}
+
+.pi-wrapper .items-header td {
+  font-weight: normal;
+  text-align: left;
+  vertical-align: middle;
+  height: 25px;
+}
+
+.pi-wrapper .items-body td {
+  height: 300px;
+  /* Fixed height for items area to match image */
+}
+
+.pi-wrapper .footer-section {
+  margin-top: 20px;
+  font-size: 11pt;
+}
+
+.pi-wrapper .footer-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.pi-wrapper .footer-item {
+  flex: 1;
+}
+
+/* Specific rule for right-aligned footer items in PI */
+.pi-wrapper .footer-item[style*="text-align: right"],
+.pi-wrapper .footer-item[style*="text-align: right;"] {
+  padding-right: 150px;
+}
+
+.stamp-item {
+  text-align: right;
+  padding-right: 200px !important;
+  /* Force padding for Stamp */
+}
+
+.pi-wrapper .declaration {
+  margin-top: 20px;
+  margin-bottom: 40px;
+}
+
+.pi-wrapper .signature-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 60px;
+  align-items: flex-end;
+}
+
+.pi-wrapper .signature-label {
+  margin-bottom: 60px;
+}
+
+/* --- Packing List Styles --- */
+.pl-wrapper {
+  font-family: Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.3;
+  padding: 20px;
+}
+
+.pl-wrapper h1 {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 5px;
+  font-size: 24pt;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.pl-wrapper .title-underline {
+  width: 300px;
+  margin: 0 auto 40px;
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+  height: 4px;
+}
+
+.pl-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pl-wrapper td,
+.pl-wrapper th {
+  border: 1px solid #000;
+  padding: 5px;
+  vertical-align: top;
+}
+
+.pl-wrapper .header-table {
+  border-top: 2px solid #000;
+}
+
+.pl-wrapper .header-table td {
+  height: 30px;
+}
+
+.pl-wrapper .label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10pt;
+}
+
+.pl-wrapper .items-table {
+  border-top: 2px solid #000;
+  border-bottom: 2px solid #000;
+  margin-top: -1px;
+}
+
+.pl-wrapper .items-table th {
+  text-align: center;
+  font-weight: bold;
+  padding: 8px 2px;
+  background-color: #fff;
+  font-size: 10pt;
+}
+
+.pl-wrapper .items-table td {
+  text-align: center;
+  height: 24px;
+  border-bottom: 1px dashed #000;
+}
+
+.pl-wrapper .items-table tbody tr:last-child td {
+  border-bottom: 1px solid #000;
+}
+
+.pl-wrapper .footer-table td {
+  border: none;
+  padding-top: 10px;
+}
+
+.pl-wrapper .footer-info {
+  margin-top: 40px;
+  font-weight: bold;
+}
+
+.pl-wrapper .signature-section {
+  margin-top: 60px;
+  text-align: right;
+  font-weight: bold;
+  padding-right: 50px;
+}
+
+/* Commercial Invoice Styles */
+.ci-wrapper {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.4;
+  padding: 40px;
+}
+
+.ci-wrapper h1 {
+  text-align: center;
+  font-size: 24pt;
+  font-weight: bold;
+  margin-bottom: 30px;
+  text-decoration: underline;
+}
+
+.ci-wrapper .invoice-container {
+  border: 2px solid #000;
+}
+
+.ci-wrapper .invoice-row {
+  display: flex;
+  border-bottom: 1px solid #000;
+}
+
+.ci-wrapper .invoice-row:last-child {
+  border-bottom: none;
+}
+
+.ci-wrapper .invoice-col {
+  padding: 0;
+  border-right: 1px solid #000;
+  position: relative;
+}
+
+.ci-wrapper .invoice-col:last-child {
+  border-right: none;
+}
+
+.ci-wrapper .label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 0;
+  font-size: 9pt;
+  background-color: #f0f0f0;
+  padding: 5px;
+  border-bottom: 1px solid #000;
+}
+
+.ci-wrapper .content-area {
+  padding: 5px;
+}
+
+.ci-wrapper .goods-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+}
+
+.ci-wrapper .goods-table th {
+  border: 1px solid #000;
+  padding: 5px;
+  text-align: center;
+  background-color: #f0f0f0;
+  font-size: 9pt;
+}
+
+.ci-wrapper .goods-table td {
+  border: 1px solid #000;
+  padding: 5px;
+  vertical-align: top;
+  height: 300px;
+}
+
+/* Sales Contract Styles */
+.sc-wrapper {
+  font-family: Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  padding: 60px 80px;
+}
+
+.sc-wrapper h1 {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 40px;
+  font-size: 24pt;
+  font-weight: bold;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.sc-wrapper h2 {
+  text-align: center;
+  font-size: 14pt;
+  font-weight: bold;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  margin-bottom: 30px;
+  margin-top: 40px;
+}
+
+.sc-wrapper h3 {
+  font-size: 11pt;
+  font-weight: bold;
+  margin-top: 25px;
+  margin-bottom: 10px;
+}
+
+.sc-wrapper h4 {
+  font-size: 10pt;
+  font-weight: bold;
+  margin-top: 15px;
+  margin-bottom: 5px;
+}
+
+.sc-wrapper p {
+  margin-bottom: 15px;
+  text-align: justify;
+}
+
+.sc-wrapper .item-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+  border: 1px solid #000;
+}
+
+.sc-wrapper .item-table th {
+  background-color: #000;
+  color: #fff;
+  padding: 8px;
+  border: 1px solid #ccc;
+  font-weight: bold;
+  text-align: center;
+}
+
+.sc-wrapper .item-table td {
+  border: 1px solid #ccc;
+  padding: 5px;
+  height: 25px;
+}
+
+.sc-wrapper .item-table tr:last-child td {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+.sc-wrapper ul.conditions {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.sc-wrapper ul.conditions li {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: baseline;
+}
+
+.sc-wrapper ul.conditions li::before {
+  content: "■";
+  margin-right: 15px;
+  font-size: 8pt;
+  position: relative;
+  top: -2px;
+}
+
+.sc-wrapper .payment-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #000;
+}
+
+.sc-wrapper .payment-table td {
+  border: 1px solid #000;
+  padding: 5px;
+  vertical-align: middle;
+}
+
+.sc-wrapper .payment-header {
+  background-color: #d9d9d9;
+  font-weight: bold;
+  text-align: center;
+}
+
+
+
+.sc-wrapper .general-terms-section {
+  text-align: justify;
+}
+
+.sc-wrapper .term-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.sc-wrapper .term-list li {
+  margin-bottom: 5px;
+}
+
+.sc-wrapper .sub-term-list {
+  list-style-type: none;
+  padding-left: 20px;
+}
+
+.sc-wrapper .page-break {
+  page-break-before: always;
+  margin-top: 60px;
+}
+
+.sc-wrapper .signature-container {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 80px;
+  margin-bottom: 50px;
+}
+
+.sc-wrapper .signature-column {
+  width: 48%;
+}
+
+.sc-wrapper .signature-header {
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 11pt;
+}
+
+.sc-wrapper .signature-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.sc-wrapper .signature-label {
+  white-space: nowrap;
+  margin-right: 10px;
+}
+
+.sc-wrapper .signature-content {
+  flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+}

@@ -1,0 +1,218 @@
+/* Tiptap Editor Styles */
+
+.contract-editor .ProseMirror {
+    min-height: 500px;
+    padding: 2rem;
+}
+
+.contract-editor .ProseMirror:focus {
+    outline: none;
+}
+
+/* Placeholder */
+.contract-editor .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: #adb5bd;
+    pointer-events: none;
+    height: 0;
+}
+
+/* Headings */
+.contract-editor .ProseMirror h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #1a1a1a;
+}
+
+.contract-editor .ProseMirror h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    color: #1a1a1a;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+}
+
+.contract-editor .ProseMirror h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.contract-editor .ProseMirror h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    color: #4b5563;
+}
+
+/* Paragraphs */
+.contract-editor .ProseMirror p {
+    margin-bottom: 0.75rem;
+    line-height: 1.7;
+    color: #374151;
+}
+
+/* Lists */
+.contract-editor .ProseMirror ul,
+.contract-editor .ProseMirror ol {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.contract-editor .ProseMirror li {
+    margin-bottom: 0.25rem;
+}
+
+.contract-editor .ProseMirror li p {
+    margin-bottom: 0.25rem;
+}
+
+/* Tables */
+.contract-editor .ProseMirror table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+}
+
+.contract-editor .ProseMirror th,
+.contract-editor .ProseMirror td {
+    border: 1px solid #d1d5db;
+    padding: 0.75rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.contract-editor .ProseMirror th {
+    background-color: #f3f4f6;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.contract-editor .ProseMirror td {
+    background-color: #ffffff;
+}
+
+.contract-editor .ProseMirror tr:hover td {
+    background-color: #f9fafb;
+}
+
+/* Selected cells */
+.contract-editor .ProseMirror .selectedCell {
+    background-color: #dbeafe;
+}
+
+/* Table resize handle */
+.contract-editor .ProseMirror .column-resize-handle {
+    position: absolute;
+    right: -2px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #3b82f6;
+    cursor: col-resize;
+}
+
+/* Horizontal Rule */
+.contract-editor .ProseMirror hr {
+    border: none;
+    border-top: 2px solid #e5e7eb;
+    margin: 2rem 0;
+}
+
+/* Highlighted text (editable fields) */
+.contract-editor .ProseMirror mark {
+    background-color: #fef08a;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    color: #92400e;
+    font-weight: 500;
+}
+
+/* Selection */
+.contract-editor .ProseMirror ::selection {
+    background-color: #bfdbfe;
+}
+
+/* Blockquote */
+.contract-editor .ProseMirror blockquote {
+    border-left: 4px solid #3b82f6;
+    padding-left: 1rem;
+    margin-left: 0;
+    margin-right: 0;
+    font-style: italic;
+    color: #6b7280;
+}
+
+/* Code */
+.contract-editor .ProseMirror code {
+    background-color: #f3f4f6;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-family: ui-monospace, monospace;
+    font-size: 0.875rem;
+}
+
+.contract-editor .ProseMirror pre {
+    background-color: #1f2937;
+    color: #f9fafb;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+}
+
+.contract-editor .ProseMirror pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+/* Text alignment */
+.contract-editor .ProseMirror [style*="text-align: center"],
+.contract-editor .ProseMirror .text-center {
+    text-align: center;
+}
+
+.contract-editor .ProseMirror [style*="text-align: right"],
+.contract-editor .ProseMirror .text-right {
+    text-align: right;
+}
+
+.contract-editor .ProseMirror [style*="text-align: justify"],
+.contract-editor .ProseMirror .text-justify {
+    text-align: justify;
+}
+
+/* Field highlight toggle - hide mapped/user field highlights when toggle is off */
+.contract-editor:not(.show-field-highlight) .data-field-node.bg-green-50,
+.contract-editor:not(.show-field-highlight) .data-field-node.bg-blue-50 {
+    background-color: transparent !important;
+    border-color: transparent !important;
+}
+
+/* Agent highlight toggle - hide agent highlights when toggle is off */
+.contract-editor:not(.show-agent-highlight) .data-field-node.bg-yellow-50 {
+    background-color: transparent !important;
+    border-color: transparent !important;
+}
+
+/* Print styles */
+@media print {
+    .contract-editor .ProseMirror {
+        padding: 0;
+        min-height: auto;
+    }
+
+    .contract-editor .ProseMirror mark {
+        background-color: transparent;
+        color: inherit;
+        font-weight: normal;
+    }
+}

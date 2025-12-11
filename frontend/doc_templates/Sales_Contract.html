@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Sale Contract</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 60px 80px;
+            font-size: 10pt;
+            line-height: 1.5;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 40px;
+            font-size: 24pt;
+            font-weight: bold;
+            text-decoration: underline;
+            text-underline-offset: 5px;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            margin-bottom: 30px;
+            margin-top: 40px;
+        }
+
+        h3 {
+            font-size: 11pt;
+            font-weight: bold;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+
+        h4 {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 5px;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        .fill-line {
+            display: inline-block;
+            border-bottom: 1px solid #000;
+            width: 200px;
+        }
+
+        /* Item Table Styles */
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            border: 1px solid #000;
+        }
+
+        .item-table th {
+            background-color: #000;
+            color: #fff;
+            padding: 8px;
+            border: 1px solid #ccc;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .item-table td {
+            border: 1px solid #ccc;
+            padding: 5px;
+            height: 25px;
+        }
+
+        .item-table tr:last-child td {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+
+        /* List Styles */
+        ul.conditions {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        ul.conditions li {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: baseline;
+        }
+
+        ul.conditions li::before {
+            content: "■";
+            margin-right: 15px;
+            font-size: 8pt;
+            position: relative;
+            top: -2px;
+        }
+
+        /* Payment Table Styles */
+        .payment-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #000;
+        }
+
+        .payment-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            vertical-align: middle;
+        }
+
+        .payment-header {
+            background-color: #d9d9d9;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .radio-circle {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #000;
+            border-radius: 50%;
+            margin: 0 auto;
+        }
+
+        /* General Terms Styles */
+        .general-terms-section {
+            text-align: justify;
+        }
+
+        .term-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .term-list li {
+            margin-bottom: 5px;
+        }
+
+        .sub-term-list {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+
+        .page-break {
+            page-break-before: always;
+            margin-top: 60px;
+        }
+
+        /* Signature Block Styles */
+        .signature-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 80px;
+            margin-bottom: 50px;
+        }
+
+        .signature-column {
+            width: 48%;
+        }
+
+        .signature-header {
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 11pt;
+        }
+
+        .signature-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .signature-label {
+            white-space: nowrap;
+            margin-right: 10px;
+        }
+
+        .signature-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Page 1: Specific Conditions -->
+    <h1>Sale Contract</h1>
+
+    <h2>Specific Conditions</h2>
+
+    <p>
+        The purpose of this contract is to stipulate the rights, obligations, and all matters of both parties necessary
+        for [seller_name] (hereinafter referred to as seller) and </span> [buyer_name] (hereinafter referred to as buyer) to sign the Overseas
+        distribution contract for the distribution of the following goods. 'seller' and 'Buyer' are hereinafter
+        referred to as "Parties to the Contract" or "Parties".
+    </p>
+
+    <table class="item-table">
+        <thead>
+            <tr>
+                <th style="width: 10%;">Item No.</th>
+                <th style="width: 35%;">Commodity & Description</th>
+                <th style="width: 15%;">Quantity</th>
+                <th style="width: 15%;">Unit Price</th>
+                <th style="width: 15%;">Total</th>
+                <th style="width: 10%;">Notice</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1 [item_no]</td>
+                <td>[hscode], [description]</td>
+                <td>[quantity]</td>
+                <td>[unit_price] / [unit] [currency]</td>
+                <td>[currency][sub_total_price]</td>
+                <td>[notice]</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>합계</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>[currency][total_price]</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <ul class="conditions">
+        <li>Time of Shipment : [shipment_deadline]<br>
+            * Cancellation Date for Late Shipment : [shipment_cancellation_date]</li>
+        <li>Port of Shipment : [pol]</li>
+        <li>Port of Destination : [pod]</li>
+        <li>Partial Shipment : Allowed [ &nbsp;&nbsp; ], Not Allowed [ &nbsp;&nbsp; ]</li>
+        <li>Transhipment : Allowed [ &nbsp;&nbsp; ], Not Allowed [ &nbsp;&nbsp; ]</li>
+        <li>Delivery Terms : [incoterms][incoterms_port] Incoterms 2020</li>
+        <li>Payment</li>
+    </ul>
+
+    <table class="payment-table">
+        <tr>
+            <td rowspan="3" class="payment-header" style="width: 20%;">Letter of Credit (L/C)</td>
+            <td class="payment-header" style="width: 20%;">Sight Credit</td>
+            <td style="width: 5%; text-align: center;"><span class="radio-circle"></span></td>
+            <td>irrevocable documentary credit payable at sight</td>
+        </tr>
+        <tr>
+            <td class="payment-header">Deferred Payment Credit</td>
+            <td style="width: 5%; text-align: center;"><span class="radio-circle"></span></td>
+            <td>irrevocable documentary credit with deferred payment at [ &nbsp; ] days from B/L(AWB) date</td>
+        </tr>
+        <tr>
+            <td class="payment-header">Acceptance Credit</td>
+            <td style="width: 5%; text-align: center;"><span class="radio-circle"></span></td>
+            <td>irrevocable documentary credit with acceptance of drafts at [ &nbsp; ] days from B/L(AWB) date</td>
+        </tr>
+        <tr>
+            <td rowspan="2" class="payment-header">Documentary Collection</td>
+            <td class="payment-header">D/P</td>
+            <td style="width: 5%; text-align: center;"><span class="radio-circle"></span></td>
+            <td>documents against payment</td>
+        </tr>
+        <tr>
+            <td class="payment-header">D/A</td>
+            <td style="width: 5%; text-align: center;"><span class="radio-circle"></span></td>
+            <td>documents against acceptance payable at [ &nbsp; ] days from B/L(AWB) date</td>
+        </tr>
+        <tr>
+            <td class="payment-header" colspan="2">Payment in Advance</td>
+            <td style="width: 5%; text-align: center;"><span class="radio-circle"></span></td>
+            <td>T/T (Telegraph Transfer) within [ &nbsp; ] days from B/L(AWB) date</td>
+        </tr>
+        <tr>
+            <td class="payment-header" colspan="2">Other</td>
+            <td style="width: 5%; text-align: center;"><span class="radio-circle"></span></td>
+            <td>T/T (Telegraph Transfer) at least [ &nbsp; ] days before the agreed date of shipment</td>
+        </tr>
+    </table>
+
+    <ul class="conditions">
+        <li>Insurance : Insurance : Under CIF (or CIP), the Seller shall arrange cargo insurance in accordance
+            with<br>CIF (or CIP) of the latest Incoterms of the International Chamber of Commerce.</li>
+        <li>Packing : [ ex: Export Standard Packing ]</li>
+        <li>Marking : [<span style="display:inline-block; width: 300px;"></span>]</li>
+        <li>Documents Required :
+            <ul style="list-style-type: none; padding-left: 0; margin-top: 5px; width: 100%;">
+                <li style="margin-bottom: 5px; display: block;">[ ex: Full set of Clean on Board Bills of Lading ]
+                </li>
+                <li style="margin-bottom: 5px; display: block;">[ ex: Signed Commercial Invoices in 3 Originals ]</li>
+                <li style="margin-bottom: 5px; display: block;">[ ex: Packing Lists in 3 Originals ]</li>
+                <li style="margin-bottom: 5px; display: block;">[ ex: Certificate of Origin in 1 Original plus 1 copy
+                    ]</li>
+                <li style="margin-bottom: 5px; display: block;">[ ex: Inspection Certificate in 2 Originals ]</li>
+            </ul>
+        </li>
+        <li>Other &nbsp;&nbsp;:</li>
+    </ul>
+
+    <p style="margin-top: 60px; margin-bottom: 60px;">These Specific Conditions are subject to the General Terms and
+        Conditions set forth below.</p>
+
+    <div class="signature-container">
+        <div class="signature-column">
+            <div class="signature-header">The Seller</div>
+            <div class="signature-row">
+                <span class="signature-label">By :</span>
+                <span class="signature-content">[seller_name]</span>
+            </div>
+            <div class="signature-row">
+                <span class="signature-label">Address :</span>
+                <span class="signature-content">[seller_address], [seller_city], [seller_country]</span>
+            </div>
+            <div class="signature-row">
+            <span class="signature-label">Name / Title :</span>
+            <span class="signature-content">
+                [seller_human_name]<br>
+                [seller_human_position]
+            </span>
+        </div>
+
+            <div class="signature-row">
+                <span class="signature-label">Signature : [</span>
+                <span style="flex-grow: 1;"></span>
+                <span>]</span>
+            </div>
+        </div>
+        <div class="signature-column">
+    <div class="signature-header">The Buyer</div>
+
+    <div class="signature-row">
+        <span class="signature-label">By :</span>
+        <span class="signature-content">[buyer_name]</span>
+    </div>
+
+    <div class="signature-row">
+        <span class="signature-label">Address :</span>
+        <span class="signature-content">
+            [buyer_address], [buyer_city], [buyer_country]
+        </span>
+    </div>
+
+    <div class="signature-row">
+        <span class="signature-label">Name / Title :</span>
+        <span class="signature-content">
+            [buyer_human_name]<br>
+            [buyer_human_position]
+        </span>
+    </div>
+
+   
+    <div class="signature-row">
+                <span class="signature-label">Signature : [</span>
+                <span style="flex-grow: 1;"></span>
+                <span>]</span>
+            </div>
+</div>
+
+    </div>
+
+    <!-- Page 2+: General Terms and Conditions -->
+    <div class="page-break"></div>
+
+    <h2>General Terms and Conditions</h2>
+    <p style="text-align: justify; margin-bottom: 20px;">Other detailed terms and conditions of this contract are
+        specified in the following 'General Terms and Conditions'. 'seller' and 'buyer' agree to the main
+        contracts and "General Terms and Conditions", and to prove the establishment of this contract, two copies of the
+        contract shall be prepared, mutually signed, and each part shall keep one copy of contract.</p>
+
+    <div class="general-terms-section">
+        <h3>1. [General]</h3>
+        <p>These General Terms and Conditions are intended to be applied together with the Specific Conditions. In case
+            of contradiction between these General Terms and Conditions and the Specific Conditions agreed between the
+            parties, the Specific Conditions shall prevail.</p>
+
+        <h3>2. [Sales Territory, Channel]</h3>
+        <ol class="term-list">
+            <li>'seller' authorizes the sales right for distribution channel in [coo] to 'Buyer'</li>
+            <li>The sales permission area is designated as [coo] (hereinafter referred to as "region"), and
+                'Buyer' has the right to distribute and sell within the contract period.</li>
+            <li>'Buyer' can conduct general sales within the scope of authorized region when its sales</li>
+            <li>The buyer's sales channels are permitted only for this contract are as follows. In case of adding sales
+                channels, they can be added by mutual agreement.</li>
+        </ol>
+        <div style="margin-left: 20px; font-weight: bold; margin-top: 10px;">A. Sales Channels :</div>
+
+        <h3>3. [Shipment]</h3>
+        <ol class="term-list">
+            <li>The date of issuance of the bill of lading will be deemed to be the date of shipment unless the bill of
+                lading contains an on board notation indicating the date of shipment, in which case the date stated in
+                the on board notation will be deemed to be the date of shipment.</li>
+            <li>Partial shipment and/or transshipment shall be permitted unless otherwise stated in this Sales Contract.
+            </li>
+            <li>The Seller shall not be responsible for any delay in shipment due to the Buyer's failure to provide
+                timely a documentary credit, as the case maybe, in conformity with this Sales Contract. The Seller shall
+                not be responsible for any damages incurred by the Buyer due to either delay in arrival of the ship
+                and/or airplane designated by the Buyer beyond the prearranged date of shipment.</li>
+            <li>If the parties agreed upon a cancellation date for late shipment in the Specific Conditions, the Buyer
+                may avoid the Sales Contract by notification to the Seller in case the shipment has not occurred by the
+                cancellation date.</li>
+        </ol>
+
+        <h3>4. [Packing and Marking]</h3>
+        <ol class="term-list">
+            <li>Packing shall be performed at the Seller's option unless otherwise stated in this Sales Contract. In
+                case special instructions are necessary, the Buyer should provide the Seller with such instructions in a
+                timely manner. All the additional costs thereby incurred shall be borne by the Buyer.</li>
+            <li>Shipping Mark shall be made as shown in the Specific Conditions, if any.</li>
+        </ol>
+
+        <h3>5. [Insurance]</h3>
+        <ol class="term-list">
+            <li>In case of CIF, 110% of the invoice amount shall be insured with insurance cover complying with the
+                Institute Cargo Clauses (C) or similar clause.</li>
+            <li>In case of CIP, 110% of the invoice amount shall be insured with insurance cover complying with the
+                Institute Cargo Clauses (A) or similar clause.</li>
+        </ol>
+
+        <h3>6. [Buyer's Obligation]</h3>
+        <ol class="term-list">
+            <li>'Buyer' shall be responsible for sales account, advertisements, and sales promotions, and make best
+                efforts to maximize sales in region.</li>
+            <li>'Buyer' must obtain the permission from 'seller' when distributing articles related to permitted
+                product to use and produce promotional materials, regardless of form as online and offline banners,
+                catalogs, and pamphlets, etc.</li>
+            <li>'Buyer' has the right to select customers, sub-distributors or partners within the defined region.
+                However, before choosing a partner, share the partner's information with 'seller' in advance. All of
+                these customers, sub-distributors or partners are also required to comply with the entire contract.</li>
+            <li>'Buyer' shall investigate the complaints received by customers or business partners within the region
+                and shall discuss the relevant measures with 'seller'</li>
+            <li>'Buyer' shall not disclose and use any confidential products or information related to 'seller' to a
+                third party without prior written consent of 'seller', except for the obligation under this contract.
+                However, this is not limited to prices, discounts, conditions, periods or information that are directly
+                or indirectly transmitted from 'seller', or acquired in the process of trading with 'seller'.</li>
+        </ol>
+
+        <h3>7. [seller's Obligation]</h3>
+        <ol class="term-list">
+            <li>'seller' shall support distributor's marketing activities. Especially, 'seller' shall make its best
+                effort to support the documentations for marketing. However, it is limited to approved data.</li>
+            <li>'seller' shall make its best effort to support the documentations for distribution and sales such as
+                product information, export customs clearance documents, import sales (including certification).</li>
+            <li>'seller' shall not infringe the authority of 'Buyer' in direct or indirect based on this contract,
+                through its employees, agents or other agencies or either on its own</li>
+            <li>In the case of changing specifications such as important raw materials or product design in 'seller',
+                'seller' shall notify 'Buyer' by e-mail or writing before 20 days prior to the expected application of
+                the change.</li>
+        </ol>
+
+        <h3>8. [Inspection]</h3>
+        <ol class="term-list">
+            <li>The inspection of the Goods shall be done according to the export regulation of the Republic of Korea
+                and/or by the manufacturer(s), and such inspection shall be considered as final.</li>
+            <li>Should any specific inspector be designated by the Buyer, all additional charges incurred thereby shall
+                be borne by the Buyer and shall be added to the invoice amount, for which the documentary credit, if
+                any, shall be amended accordingly.</li>
+        </ol>
+
+        <h3>9. [Supply and Payment]</h3>
+        <ol class="term-list">
+            <li>When ordering, 'Buyer' shall clarify information such as packing method, destination information, and
+                order quantity, etc.</li>
+            <li>'seller' shall notify to 'Buyer' the available quantity and delivery date within 3 business days from
+                the date the order is received.</li>
+            <li>If the parties have agreed on payment by a documentary credit, then, unless otherwise agreed, a
+                documentary credit in favor of the Seller shall be issued within [ ] days from the date of this Sales
+                Contract by a reputable bank, subject to the latest Uniform Customs and Practice for Documentary Credits
+                (UCP) of the International Chamber of Commerce. The amount of such credit shall be sufficient to cover
+                this contract amount.</li>
+            <li>If the parties have agreed on payment by a documentary collection, then, unless otherwise agreed, the
+                collection will be subject to the latest Uniform Rules for Collection (URC) of the International Chamber
+                of Commerce.
+                <ul class="sub-term-list">
+                    <li>(a) In case of D/P, the Seller shall deliver a sight bill(s) of exchange drawn on the Buyer
+                        together with the required documents to the Buyer through banks, and the Buyer shall effect the
+                        payment immediately upon the first presentation of the bill(s) of exchange and the required
+                        documents.</li>
+                    <li>(b) In case of D/A, the Seller shall deliver a time bill(s) of exchange drawn on the Buyer
+                        together with the required documents to the Buyer through banks, and the Buyer shall accept the
+                        bill(s) of exchange immediately upon the first presentation of the bill(s) of exchange and the
+                        required documents and shall effect the payment on the maturity date of the bill(s) of exchange.
+                    </li>
+                </ul>
+            </li>
+            <li>If the parties have agreed on payment by an open account, then, unless otherwise agreed, the Buyer shall
+                pay the invoice value of the goods to the Seller's account with the bank designated by the Seller by
+                means of telegraphic transfer (T/T) within the specified date under the Specific Conditions.</li>
+            <li>If the parties have agreed on payment by a payment in advance, then, unless otherwise agreed, the Buyer
+                shall pay the agreed amount to the Seller's account with the bank designated by the Seller by means of
+                telegraphic transfer (T/T) within the specified date under the Specific Conditions.</li>
+            <li>Payment is negotiable like <b>50% pre-deposit on the date of order (proforma invoice issuance date), and
+                    balance the remaining 50% before shipment</b> to the bank account designated by 'seller' as T/T.
+                The prices for products follow in accordance with the supply price agreed in advance.</li>
+        </ol>
+
+        <h3>10. [Warranty]</h3>
+        <p>① The Goods shall conform to the specification (and/or description) set forth in this Sales Contract, and
+            shall be of good material &amp; workmanship and free from any defect for at least【 】months from the date of
+            shipment.</p>
+        <p>② The extent of the Seller's liability under this warranty shall be limited to the repair or replacement as
+            herein provided of any defective goods or parts thereof. However, this warranty does not extend to any of
+            the said goods which have been : (a) subjected to misuse, neglect, accident or abuse, (b) improperly
+            repaired, installed, transported, altered or modified in any way by any other party than Seller or (c) used
+            in violation of instructions furnished by the Seller.</p>
+        <p>③ Except for the express limited warranties set forth in this article, the Seller makes no other warranty to
+            the Buyer, express or implied, and herby expressly disclaims any warranty of merchantability or fitness for
+            a particular purpose. In no event shall the Seller be liable to the Buyer under this Sales Contract or
+            otherwise for any lost profits or for indirect, incidental or consequential damages for any reason.</p>
+
+        <h3>11. [Claims]</h3>
+        <p>① Any claim by the Buyer of whatever nature arising under this Sales Contract shall be made by facsimile,
+            cable, or e-mail within 【 】days after arrival of the goods at the destination specified in the bills of
+            lading (or airway bill, sea waybill). Full particulars of such claim shall be made in writing, and forwarded
+            by registered mail to the Seller within 【 】days after such fax, cabling, or e-mailing.</p>
+        <p>② The Buyer must submit with particulars the inspection report sworn by a reputable surveyor acceptable to
+            the Seller when the quality or quantity of the goods delivered is in dispute. Failure to make such claim
+            within such period shall constitute acceptance of shipment and agreement of Buyer that such shipment fully
+            complies with applicable terms and conditions.</p>
+
+        <h3>12. [Remedy]</h3>
+        <p>① The Buyer shall, without limitation, be in default of this Sales Contract, if the Buyer shall become
+            insolvent, bankrupt or fail to make any payment to the Seller including the establishment of the documentary
+            credit within the due date.</p>
+        <p>② In case of the Buyer's default, Seller may, without prior notice thereof to the Buyer, exercise any of the
+            following remedies among others :</p>
+        <p>(a) terminate this Sales Contract;</p>
+        <p>(b) terminate this Sales Contract as to the portion of the goods in default only, and resell them to recover
+            from Buyer the difference between the price set forth in this Sales Contract and the price obtained upon
+            resale, plus any incidental loss or expense; or</p>
+        <p>(c) terminate this Sales Contract as to any unshipped balance and recover from the Buyer as liquidated
+            damages, a sum of 【 】percent of the price of the unshipped balance.</p>
+        <p>③ The rights and remedies herein reserved to the Seller shall be cumulative and in addition to any other or
+            further rights and remedies available at law.</p>
+
+        <h3>13. [Force Majeure]</h3>
+        <p>A party shall not be liable for a failure to perform any of his obligations herein if he proves that the
+            failure was due to an impediment beyond his control such as prohibition of exportation, suspension of
+            issuance of export license or other government restriction, act of God, war, blockade, revolution,
+            insurrection, mobilization, strike, lockout or any labor dispute, civil commotion, riot, plague or other
+            epidemic, fire, typhoon, flood, etc, and that he proves that he could not reasonably be expected to have
+            taken the impediment into account at the time of the conclusion of this Sales Contract or to have avoided or
+            overcome its</p>
+
+        <h3>14. [Patents, Trade Marks, Designs, etc.]</h3>
+        <h4>① The Buyer acknowledges and agrees that:</h4>
+        <p>(a) any and all the Seller's intellectual property rights are the sole and exclusive property of the Seller
+            or its licensors;</p>
+        <p>(b) the Buyer shall not acquire any ownership interest in any of the Seller's intellectual property rights
+            under this Sales Contract;</p>
+        <p>(c) any goodwill derived from the use by the Buyer of the Seller's intellectual property rights inures to the
+            benefit of the Seller or its licensors, as the case may be;</p>
+        <p>(d) if the Buyer acquires any intellectual property rights, rights in or relating to any Goods (including any
+            rights in any trademarks, derivative works or patent improvements relating thereto) by operation of law, or
+            otherwise, such rights are deemed to be the property of and are hereby irrevocably assigned to the Seller or
+            its licensors, as the case may be, without further action by either of the parties; and</p>
+        <p>(e) the Buyer shall use the Seller's intellectual property rights solely for purposes of using the goods
+            under this Sales Contract and only in accordance with this Sales Contract and the instructions of the
+            Seller.</p>
+        <h4>② The Buyer shall not:</h4>
+        <p>(a) take any action that interferes with any of the Seller's rights in or to the Seller's intellectual
+            property rights, including the Seller's ownership or exercise thereof;</p>
+        <p>(b) challenge any right, title or interest of Seller in or to the Seller's intellectual property rights;</p>
+        <p>(c) make any claim or take any action adverse to the Seller's ownership of the Seller's intellectual property
+            rights;</p>
+        <p>(d) register or apply for registrations, anywhere in the world, for the Seller's trademarks or any other
+            trademark that is similar to the Seller's trademarks or that incorporates the Seller's trademarks;</p>
+        <p>(e) use any mark, anywhere that is confusingly similar to the Seller's trademarks;</p>
+        <p>(f) engage in any action that tends to disparage, dilute the value of, or reflect negatively on the goods or
+            any of the Seller's trademarks;</p>
+        <p>(g) misappropriate any of the Seller's trademarks for use as a domain name without prior written consent from
+            the Seller; or</p>
+        <p>(h) alter, obscure or remove any of the Seller's trademark(s), copyright notices or any other proprietary
+            rights notices placed on the goods, marketing materials or other materials that the Seller may provide.</p>
+
+        <h3>15. [Confidentiality]</h3>
+        <p>Not only the duration of the contract, but also for one year after the expiration of the contract maintenance
+            period, according to this contract, 'Buyer' must not divulge any information of product-related technology,
+            commercial information, pricing structure, data, sales, marketing, distribution, projects, plans,
+            management, etc. The violation of this confidentiality obligation constitutes the serious breach of this
+            contract.</p>
+
+        <h3>16. [Governing Law]</h3>
+        <p>All matters arising out of or relating to this Sales Contract are governed by and construed in accordance
+            with the laws of Republic of Korea.</p>
+
+        <h3>17. [Arbitration]</h3>
+        <p>Any dispute arising out of or in connection with this Sales Contract shall be finally settled by arbitration
+            in Seoul in accordance with the International Arbitration Rules of the Korean Commercial Arbitration Board
+            and laws of Korea.</p>
+
+        <h3>18. [Trade Terms]</h3>
+        <p>All delivery terms provided in the Contract shall be interpreted in accordance with the latest Incoterms of
+            International Chamber of Commerce.</p>
+    </div>
+
+    <div class="signature-block">
+        <p>2022. 10. 27</p>
+        <div style="display: flex; justify-content: space-between;">
+            <div style="width: 45%;">
+                <p class="signature-line">seller: [seller_name]</p>
+                <p class="signature-line">Address: [seller_address], [seller_city], [seller_country]</p>
+                <p class="signature-line">CEO: [seller_ceo] (sign)</p>
+            </div>
+            <div style="width: 45%;">
+                <p class="signature-line">Buyer: [buyer_name]</p>
+                <p class="signature-line">Address: [buyer_address], [buyer_city], [buyer_country]</p>
+                <p class="signature-line">CEO: [buyer_ceo] (sign)</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>Appendix</h2>
+    <p>1. Product : [description]</p>
+    <p>2. Supply Price: [currency] [unit_price]/[unit] [incoterms] [incoterms_port] incoterms2020</p>
+    <p>3. Total Order &amp; Quantity: [quantity]</p>
+    <p>4. Lead Time : [lead_time]</p>
+
+</body>
+
+</html>

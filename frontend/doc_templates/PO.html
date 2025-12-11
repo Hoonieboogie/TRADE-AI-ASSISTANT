@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Purchase Order</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Times New Roman", serif;
+    }
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .po-wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 40px 50px;
+      border: 1px solid #ccc;
+    }
+    .po-header-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+    .po-header-label {
+      font-size: 13px;
+      font-weight: bold;
+      background: #d9e7ff;
+      padding: 4px 10px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .po-company {
+      text-align: center;
+      margin-top: 10px;
+      margin-bottom: 5px;
+    }
+    .po-company-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .po-company-info {
+      font-size: 12px;
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+    .po-title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin: 25px 0;
+      text-decoration: underline;
+    }
+    .po-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .po-meta-block p {
+      margin: 2px 0;
+    }
+    .po-body {
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .po-terms {
+      font-size: 13px;
+      margin-top: 10px;
+      margin-bottom: 30px;
+    }
+    .po-terms .term-row {
+      display: flex;
+      margin-bottom: 4px;
+    }
+    .po-terms .term-label {
+      width: 120px;
+      font-weight: bold;
+    }
+    .po-terms .term-value {
+      flex: 1;
+    }
+    .po-sign {
+      font-size: 13px;
+      margin-top: 40px;
+    }
+    .po-sign-title {
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    .po-sign-table {
+      width: 100%;
+    }
+    .po-sign-table td {
+      vertical-align: top;
+      padding: 10px 0;
+    }
+    .po-sign-name {
+      margin-top: 40px;
+      border-top: 1px solid #000;
+      display: inline-block;
+      padding-top: 3px;
+    }
+    .po-sign-role {
+      display: block;
+      margin-top: 3px;
+    }
+  </style>
+</head>
+<body>
+  <div class="po-wrapper">
+    <!-- 상단 라벨 -->
+    <div class="po-header-top">
+
+    </div>
+
+    <!-- 회사 정보 -->
+    <div class="po-company">
+      <div class="po-company-name">[buyer_name]</div>
+      <div class="po-company-info">
+        [buyer_address]<br />
+        [buyer_number], [buyer_fax], [buyer_homepage]
+      </div>
+    </div>
+
+    <!-- 제목 -->
+    <div class="po-title">Purchase Order</div>
+
+    <!-- 수신인 / 날짜, 레퍼런스 -->
+    <div class="po-meta">
+      <div class="po-meta-block">
+        <!-- ▼ 필요에 따라 수정해서 사용하세요 -->
+        <p>[seller_human_name]</p>
+        <p>[seller_human_position]</p>
+        <p>[seller_address]</p>
+        <p>[seller_postal_code], [seller_country]</p>
+      </div>
+      <div class="po-meta-block">
+        <p>Date&nbsp;: [po_date] </p>
+        <p>Ref. No.: [po_no]</p>
+      </div>
+    </div>
+
+    <!-- 본문 -->
+    <div class="po-body">
+      Dear Sir,<br /><br />
+      We, as buyer, hereby confirm our purchase from you as Seller of the
+      following goods in accordance with the terms and conditions given below
+      and on the back hereof.
+    </div>
+
+    <!-- 조건/내역 -->
+    <div class="po-terms">
+      <!-- ▼ 각 값들을 실제 거래 정보로 교체해서 사용하세요 -->
+      <div class="term-row">
+        <div class="term-label">Description</div>
+        <div class="term-value">[description]</div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Quantity</div>
+        <div class="term-value">[quantity]</div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Unit Price</div>
+        <div class="term-value">[currency][unit_price]/[unit]&nbsp;[incoterms]&nbsp;[incoterms_port] </div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Total amount</div>
+        <div class="term-value">[total_price][currency]</div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Payment</div>
+        <div class="term-value">
+          [payment_term]
+        </div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Shipment</div>
+        <div class="term-value">[shipment_deadline]</div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">POL/POD</div>
+        <div class="term-value">[pol] / [pod]</div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Insurance</div>
+        <div class="term-value">[insurance_term]</div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Inspection</div>
+        <div class="term-value">[inspection_requirement]</div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Packing</div>
+        <div class="term-value">
+          [packing_requirement]
+        </div>
+      </div>
+      <div class="term-row">
+        <div class="term-label">Marks</div>
+        <div class="term-value">
+          [shipping_marks]
+        </div>
+      </div>
+    </div>
+
+    <!-- 서명 -->
+    <div class="po-sign">
+      <div class="po-sign-title">CONFIRMED &amp; ACCEPTED BY:</div>
+
+      <table class="po-sign-table">
+        <tr>
+          <td>
+           [seller_name]
+            <br /><br /><br />
+            <span class="po-sign-name">[seller_human_name]</span>
+            <span class="po-sign-role">[seller_human_position]</span>
+          </td>
+          <td style="text-align:right;">
+            [buyer_name]
+            <br /><br /><br />
+            <span class="po-sign-name">[buyer_human_name]</span>
+            <span class="po-sign-role">[buyer_human_position]</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
