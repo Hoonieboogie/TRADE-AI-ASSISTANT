@@ -13,7 +13,6 @@ from typing import List, Dict
 import boto3
 from django.conf import settings
 
-from agent_core.pdf_parser import production_pdf_pipeline
 
 from .models import Document
 from agent_core.config import (
@@ -26,12 +25,13 @@ from agent_core.config import (
 logger = logging.getLogger(__name__)
 
 
-def download_from_s3(s3_key: str) -> str:
+def download_from_s3(s3_key: str, file_ext: str = '.pdf') -> str:
     """
     S3에서 파일 다운로드 → 임시 파일로 저장
 
     Args:
         s3_key: S3 파일 키
+        file_ext: 파일 확장자 (예: '.pdf', '.docx')
 
     Returns:
         str: 임시 파일 경로
@@ -43,8 +43,11 @@ def download_from_s3(s3_key: str) -> str:
         region_name=settings.AWS_S3_REGION_NAME,
     )
 
-    # 임시 파일 생성
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+    # 임시 파일 생성 (확장자 유지)
+    if not file_ext.startswith('.'):
+        file_ext = '.' + file_ext
+        
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
     temp_path = temp_file.name
     temp_file.close()
 
@@ -59,51 +62,6 @@ def download_from_s3(s3_key: str) -> str:
     return temp_path
 
 
-def parse_pdf_to_chunks(
-    pdf_path: str,
-    min_chars_per_page: int = 50
-) -> List[Dict]:
-    """
-    PDF 파일을 페이지별로 파싱 (production_pdf_pipeline 사용)
-
-    Args:
-        pdf_path: PDF 파일 경로
-        min_chars_per_page: 페이지당 최소 문자 수
-
-    Returns:
-        List[Dict]: 페이지별 청크 리스트
-            [{'page': 1, 'text': '...', 'char_count': 123, 'metadata': {...}}, ...]
-    """
-    try:
-        result = production_pdf_pipeline(pdf_path, min_chunk_chars=min_chars_per_page)
-
-        if result['status'] == 'error':
-            raise ValueError(result.get('error', 'PDF parsing failed'))
-
-        if result['status'] == 'needs_ocr':
-            logger.warning(f"PDF {pdf_path} may need OCR: {result.get('message')}")
-
-        # production_pdf_pipeline 결과를 기존 포맷으로 변환
-        chunks = []
-        for chunk in result.get('chunks', []):
-            chunks.append({
-                'page': chunk['page_num'],
-                'text': chunk['text'],
-                'char_count': len(chunk['text']),
-                'metadata': chunk.get('metadata', {})
-            })
-
-        # 경고 메시지 로깅
-        for warning in result.get('warnings', []):
-            logger.warning(f"PDF parsing warning: {warning}")
-
-        logger.info(f"Parsed PDF: {len(chunks)} valid pages")
-
-        return chunks
-
-    except Exception as e:
-        logger.error(f"Failed to parse PDF {pdf_path}: {e}")
-        raise
 
 
 def generate_embeddings_batch(texts: List[str]) -> List[List[float]]:
@@ -182,69 +140,178 @@ def store_chunks_in_qdrant(
     return point_ids
 
 
+
+def convert_to_pdf(input_path: str, output_dir: str) -> str:
+    """
+    LibreOffice를 사용하여 문서를 PDF로 변환
+    Returns: 변환된 PDF 파일의 경로
+    """
+    import subprocess
+    import os
+    
+    # soffice 경로 (macOS Homebrew 기준)
+    soffice_path = '/opt/homebrew/bin/soffice'
+    if not os.path.exists(soffice_path):
+        # 대체 경로 시도 (Applications)
+        soffice_path = '/Applications/LibreOffice.app/Contents/MacOS/soffice'
+        if not os.path.exists(soffice_path):
+            raise FileNotFoundError("LibreOffice (soffice) not found")
+
+    cmd = [
+        soffice_path,
+        '--headless',
+        '--convert-to', 'pdf',
+        '--outdir', output_dir,
+        input_path
+    ]
+    
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True)
+        
+        # 예상되는 출력 파일명
+        filename = os.path.basename(input_path)
+        name_without_ext = os.path.splitext(filename)[0]
+        pdf_path = os.path.join(output_dir, f"{name_without_ext}.pdf")
+        
+        if not os.path.exists(pdf_path):
+            logger.error(f"Soffice stdout: {result.stdout.decode()}")
+            logger.error(f"Soffice stderr: {result.stderr.decode()}")
+            raise FileNotFoundError(f"Converted PDF not found at {pdf_path}")
+            
+        return pdf_path
+    except subprocess.CalledProcessError as e:
+        logger.error(f"LibreOffice conversion failed: {e.stderr.decode()}")
+        raise RuntimeError(f"PDF conversion failed: {e.stderr.decode()}")
+
+
+
 def process_uploaded_document(document_id: int):
     """
-    업로드된 문서 처리 메인 파이프라인
-
-    1. S3에서 PDF 다운로드
-    2. PDF 파싱 (페이지별)
-    3. 임베딩 생성
-    4. Qdrant 저장
-    5. Document 상태 업데이트
-
-    Args:
-        document_id: Document ID (doc_id)
+    업로드된 문서 처리 파이프라인
+    1. S3에서 파일 다운로드
+    2. (DOCX/HWP) PDF 변환 및 S3 업로드
+    3. 텍스트 추출 및 저장
+    4. 임베딩 생성 및 저장
     """
-    temp_pdf_path = None
+    document = Document.objects.get(doc_id=document_id)
+    document.upload_status = 'processing'
+    document.save()
+
+    # Initialize s3_client here as it's used in this function
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
+
+    processing_file_path = None
+    converted_pdf_path = None
 
     try:
-        # 1. 문서 조회
-        document = Document.objects.get(doc_id=document_id)
-        logger.info(f"Processing document {document_id}: {document.original_filename}")
+        # 1. S3에서 다운로드
+        import os
+        file_ext = os.path.splitext(document.original_filename)[1].lower()
+        if not file_ext:
+            file_ext = '.pdf' # Default
+            
+        # download_from_s3 함수 사용 (이미 정의됨)
+        processing_file_path = download_from_s3(document.s3_key, file_ext)
 
-        # 2. S3에서 다운로드
-        temp_pdf_path = download_from_s3(document.s3_key)
+        # PDF 변환 (DOCX, HWP인 경우)
+        if file_ext in ['.docx', '.hwp']:
+            try:
+                output_dir = os.path.dirname(processing_file_path)
+                converted_pdf_path = convert_to_pdf(processing_file_path, output_dir)
+                
+                # 변환된 PDF를 S3에 업로드
+                with open(converted_pdf_path, 'rb') as pdf_file:
+                    pdf_key = f"documents/{document.trade.user.emp_no}/{document.trade.trade_id}/{document.doc_type}/preview.pdf"
+                    s3_client.upload_fileobj(
+                        pdf_file,
+                        settings.AWS_STORAGE_BUCKET_NAME,
+                        pdf_key,
+                        ExtraArgs={'ContentType': 'application/pdf'}
+                    )
+                    
+                    # S3 URL 생성
+                    pdf_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{pdf_key}"
+                    
+                    document.converted_pdf_key = pdf_key
+                    document.converted_pdf_url = pdf_url
+                    document.save(update_fields=['converted_pdf_key', 'converted_pdf_url'])
+                    
+            except Exception as e:
+                logger.error(f"PDF conversion failed: {e}")
+                # 변환 실패해도 텍스트 추출은 계속 진행
+                pass
 
-        # 3. PDF 파싱
-        chunks = parse_pdf_to_chunks(temp_pdf_path, min_chars_per_page=50)
+        # 3. 문서 파싱 (확장자에 따른 분기)
+        from agent_core.parsers import parse_document
+        chunks = parse_document(processing_file_path, document.original_filename)
 
         if not chunks:
-            raise ValueError("No valid content extracted from PDF")
+            raise ValueError("No valid content extracted from document")
 
-        # 4. 임베딩 생성 (배치 처리)
+        # 4. 텍스트 저장 (미리보기용)
+        full_text = "\n\n".join([chunk['text'] for chunk in chunks])
+        document.extracted_text = full_text
+        document.save(update_fields=['extracted_text'])
+
+        # 5. 임베딩 생성 (배치 처리)
         texts = [chunk['text'] for chunk in chunks]
         embeddings = generate_embeddings_batch(texts)
 
-        # 5. Qdrant 저장
-        point_ids = store_chunks_in_qdrant(document_id, chunks, embeddings)
+        # 6. Qdrant 저장
+        points = []
+        import json
+        
+        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+            point_id = str(uuid.uuid4())
+            from qdrant_client.models import PointStruct
+            points.append(PointStruct(
+                id=point_id,
+                vector=embedding,
+                payload={
+                    'doc_id': document.doc_id,
+                    'trade_id': document.trade.trade_id,
+                    'doc_type': document.doc_type,
+                    'page': chunk['page'],
+                    'text': chunk['text'],
+                    'metadata': json.dumps(chunk['metadata'])
+                }
+            ))
 
-        # 6. Document 업데이트: ready
-        document.qdrant_point_ids = point_ids
+        qdrant_client.upsert(
+            collection_name=COLLECTION_USER_DOCS,
+            points=points
+        )
+
+        # 포인트 ID 저장
+        document.qdrant_point_ids = [p.id for p in points]
         document.upload_status = 'ready'
-        document.error_message = None
         document.save()
 
         logger.info(
             f"✓ Document {document_id} processed successfully: "
-            f"{len(chunks)} chunks, {len(point_ids)} vectors"
+            f"{len(chunks)} chunks, {len(points)} vectors"
         )
 
     except Exception as e:
-        logger.error(f"Failed to process document {document_id}: {e}")
-
-        # 상태 업데이트: error
-        try:
-            document = Document.objects.get(doc_id=document_id)
-            document.upload_status = 'error'
-            document.error_message = str(e)
-            document.save()
-        except Exception as update_error:
-            logger.error(f"Failed to update document status: {update_error}")
-
-        raise
+        logger.error(f"Error processing document {document_id}: {e}")
+        document = Document.objects.get(doc_id=document_id) # Re-fetch in case of error before initial save
+        document.upload_status = 'error'
+        document.error_message = str(e)
+        document.save()
+        raise # Re-raise the exception after updating status
 
     finally:
         # 임시 파일 삭제
-        if temp_pdf_path and Path(temp_pdf_path).exists():
-            Path(temp_pdf_path).unlink()
-            logger.debug(f"Deleted temporary file: {temp_pdf_path}")
+        import os
+        if processing_file_path and os.path.exists(processing_file_path):
+            os.unlink(processing_file_path)
+            logger.debug(f"Deleted temporary file: {processing_file_path}")
+        
+        if converted_pdf_path and os.path.exists(converted_pdf_path):
+            os.unlink(converted_pdf_path)
+            logger.debug(f"Deleted converted PDF file: {converted_pdf_path}")

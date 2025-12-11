@@ -367,7 +367,14 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
         # PDF 처리 시작
         from documents.services import process_uploaded_document
-        process_uploaded_document(document.doc_id)
+        try:
+            process_uploaded_document(document.doc_id)
+        except Exception as e:
+            logger.error(f"Error processing document {document.doc_id}: {e}")
+            return Response({
+                'error': f'Document processing failed: {str(e)}',
+                'doc_id': document.doc_id
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({
             'status': 'processing',
@@ -719,6 +726,17 @@ class DocumentProcessingStatusView(View):
                     status_data['progress'] = 100
                     status_data['s3_url'] = new_url
                     status_data['total_chunks'] = len(document.qdrant_point_ids)
+                    
+                    # 변환된 PDF URL 추가
+                    if document.converted_pdf_key:
+                        converted_pdf_url = s3_manager.generate_presigned_download_url(
+                            s3_key=document.converted_pdf_key,
+                            expiration=3600 * 24
+                        )
+                        document.converted_pdf_url = converted_pdf_url
+                        document.save(update_fields=['converted_pdf_url'])
+                        status_data['converted_pdf_url'] = converted_pdf_url
+
                     yield f"data: {json.dumps({'type': 'complete', **status_data})}\n\n"
                     return
 

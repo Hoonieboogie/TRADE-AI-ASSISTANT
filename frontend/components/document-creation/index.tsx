@@ -82,6 +82,7 @@ export default function DocumentCreationPage({
     uploadError,
     uploadedDocumentIds,
     uploadedDocumentUrls,
+    uploadedConvertedPdfUrls,
     handleFileUpload,
     removeUploadedFile,
     retryUpload
@@ -1173,6 +1174,8 @@ export default function DocumentCreationPage({
           fileName={uploadedFileNames[currentStep]}
           status={uploadStatus[currentStep] || 'idle'}
           documentUrl={uploadedDocumentUrls[currentStep] || null}
+          docId={uploadedDocumentIds[currentStep] || null}
+          convertedPdfUrl={uploadedConvertedPdfUrls[currentStep] || null}
           error={uploadError[currentStep] || null}
           onUpload={(file) => {
             if (docId) {
