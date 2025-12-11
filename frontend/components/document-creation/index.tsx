@@ -290,12 +290,26 @@ export default function DocumentCreationPage({
 
   // Helper to check completion status for a specific step
   const getStepCompletionStatus = (stepNumber: number): boolean => {
-    if (uploadedFiles[stepNumber] || uploadedFileNames[stepNumber]) return true;
+    // Check if this step is in skip mode
     if (stepModes[stepNumber] === 'skip') return true;
 
-    if (stepNumber <= 3) {
-      if (stepModes[stepNumber] === 'upload' && !uploadedFiles[stepNumber] && !uploadedFileNames[stepNumber]) return false;
+    // For upload mode, check upload status
+    if (stepModes[stepNumber] === 'upload') {
+      const status = uploadStatus[stepNumber];
+      // Only consider complete if upload status is 'ready'
+      // Do NOT consider complete if 'uploading', 'processing', 'error', or 'idle'
+      return status === 'ready';
+    }
 
+    // For manual mode or when files are uploaded
+    if (uploadedFiles[stepNumber] || uploadedFileNames[stepNumber]) {
+      // Additional safety check: ensure upload status is 'ready' if it exists
+      const status = uploadStatus[stepNumber];
+      if (status && status !== 'ready') return false;
+      return true;
+    }
+
+    if (stepNumber <= 3) {
       // 항상 documentData 사용 (Step 이동 시 handleStepChange에서 저장됨)
       const stepContent = documentData[stepNumber] || hydrateTemplate(getTemplateForStep(stepNumber));
       return checkStepCompletion(stepContent);
