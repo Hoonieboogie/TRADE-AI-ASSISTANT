@@ -88,7 +88,7 @@ class TradeMemoryService:
                 "vector_store": {"provider": "qdrant", "config": qdrant_config},
                 "llm": {
                     "provider": "openai",
-                    "config": {"model": "gpt-4o-mini", "temperature": 0.1, "max_tokens": 2000}
+                    "config": {"model": "gpt-5.1", "temperature": 0.1, "max_tokens": 2000}
                 },
                 "embedder": {
                     "provider": "openai",
