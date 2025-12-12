@@ -93,6 +93,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingChatId, setLoadingChatId] = useState<number | null>(null);  // 로딩 중인 채팅 ID
   const [showMyPageModal, setShowMyPageModal] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [genChatId, setGenChatId] = useState<number | null>(null);  // 채팅 세션 ID
@@ -200,6 +201,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setLoadingChatId(genChatId);  // 현재 채팅 ID 저장 (새 채팅이면 null, 이후 init에서 업데이트)
 
     try {
       // Django 스트리밍 API 호출 (user_id, gen_chat_id 포함)
@@ -254,6 +256,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 if (data.gen_chat_id) {
                   const isNewChat = genChatId === null;
                   setGenChatId(data.gen_chat_id);
+                  setLoadingChatId(data.gen_chat_id);  // 새 채팅 ID로 로딩 상태 업데이트
 
                   // 새 채팅인 경우 사이드바 목록에 즉시 추가
                   if (isNewChat) {
@@ -338,6 +341,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
       });
     } finally {
       setIsLoading(false);
+      setLoadingChatId(null);  // 로딩 채팅 ID 초기화
       setCurrentToolStatus(null);  // tool 상태 초기화
     }
   };
@@ -463,11 +467,12 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 </div>
               ))}
 
-              {/* 스트리밍 중이 아닐 때만 로딩 표시 (마지막 메시지가 user이거나, ai지만 content가 비어있을 때) */}
-              {isLoading && messages.length > 0 && (
-                messages[messages.length - 1].type === 'user' ||
-                (messages[messages.length - 1].type === 'ai' && !messages[messages.length - 1].content)
-              ) && (
+              {/* 로딩 표시: 현재 채팅이 로딩 중일 때만 표시 */}
+              {isLoading && messages.length > 0 &&
+                (loadingChatId === genChatId || (loadingChatId === null && genChatId === null)) &&
+                (messages[messages.length - 1].type === 'user' ||
+                (messages[messages.length - 1].type === 'ai' && !messages[messages.length - 1].content))
+              && (
                 <div className="flex justify-start">
                   <div className="bg-white border border-gray-200 rounded-2xl px-6 py-4 shadow-sm">
                     {(() => {
