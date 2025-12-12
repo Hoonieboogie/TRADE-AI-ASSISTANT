@@ -170,6 +170,7 @@ function App() {
     const content: DocumentData = { ...doc.content };
     const docIds: Record<string, number> = {};
     const uploadedFileUrls: Record<number, string> = {};
+    const uploadedConvertedPdfUrls: Record<number, string> = {};
 
     // tradeData에서 doc_ids 및 업로드 정보 복원
     doc.tradeData?.documents?.forEach((d: any) => {
@@ -179,11 +180,12 @@ function App() {
         content.stepModes = { ...content.stepModes, [step]: 'upload' };
         content.uploadedFileNames = { ...content.uploadedFileNames, [step]: d.original_filename };
         if (d.s3_url) uploadedFileUrls[step] = d.s3_url;
+        if (d.converted_pdf_url) uploadedConvertedPdfUrls[step] = d.converted_pdf_url;
       }
     });
 
     setCurrentDocIds(docIds);
-    setDocumentData({ ...content, uploadedFileUrls });
+    setDocumentData({ ...content, uploadedFileUrls, uploadedConvertedPdfUrls });
 
     // Use initialStep if provided, otherwise fall back to doc.lastStep or 1
     const targetStep = initialStep || doc.lastStep || 1;

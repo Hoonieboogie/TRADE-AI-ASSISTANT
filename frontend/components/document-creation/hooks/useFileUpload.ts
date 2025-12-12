@@ -46,7 +46,8 @@ interface UseFileUploadReturn {
 
 export function useFileUpload(
   initialFileNames: Record<number, string> = {},
-  initialFileUrls: Record<number, string> = {}
+  initialFileUrls: Record<number, string> = {},
+  initialConvertedPdfUrls: Record<number, string> = {}
 ): UseFileUploadReturn {
   // 초기 파일명이 있는 step은 'ready' 상태로 초기화
   const initialStatus = Object.keys(initialFileNames).reduce((acc, key) => {
@@ -58,7 +59,7 @@ export function useFileUpload(
   const [uploadedFileNames, setUploadedFileNames] = useState<Record<number, string>>(initialFileNames);
   const [uploadedDocumentIds, setUploadedDocumentIds] = useState<Record<number, number | null>>({});
   const [uploadedDocumentUrls, setUploadedDocumentUrls] = useState<Record<number, string | null>>(initialFileUrls);
-  const [uploadedConvertedPdfUrls, setUploadedConvertedPdfUrls] = useState<Record<number, string | null>>({});
+  const [uploadedConvertedPdfUrls, setUploadedConvertedPdfUrls] = useState<Record<number, string | null>>(initialConvertedPdfUrls);
   const [uploadStatus, setUploadStatus] = useState<Record<number, UploadStatus>>(initialStatus);
   const [uploadError, setUploadError] = useState<Record<number, string | null>>({});
   const [uploadUnsubscribe, setUploadUnsubscribe] = useState<Record<number, (() => void) | null>>({});

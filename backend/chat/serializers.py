@@ -64,6 +64,7 @@ class DocumentSerializer(serializers.ModelSerializer):
             # Upload fields
             's3_key', 's3_url', 'original_filename', 'file_size',
             'mime_type', 'upload_status', 'error_message',
+            'converted_pdf_url', 'extracted_text',
             'qdrant_point_ids',
             # Counts
             'message_count', 'version_count',

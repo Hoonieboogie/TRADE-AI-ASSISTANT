@@ -88,7 +88,8 @@ export default function DocumentCreationPage({
     retryUpload
   } = useFileUpload(
     documentData.uploadedFileNames as Record<number, string>,
-    documentData.uploadedFileUrls as Record<number, string>
+    documentData.uploadedFileUrls as Record<number, string>,
+    documentData.uploadedConvertedPdfUrls as Record<number, string>
   );
 
   const {
