@@ -178,7 +178,7 @@ class TradeInitView(APIView):
 
     def post(self, request):
         user_id = request.data.get('user_id')
-        title = request.data.get('title', 'untitled document')
+        title = request.data.get('title', '새 문서')
 
         logger.info(f"TradeInitView: user_id={user_id}, title={title}")
 

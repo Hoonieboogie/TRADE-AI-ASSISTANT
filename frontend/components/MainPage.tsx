@@ -271,14 +271,14 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-gray-900 font-bold text-xl line-clamp-1 tracking-tight" title={doc.name}>{doc.name}</h3>
+                      <div className="flex items-start gap-3 mb-1">
+                        <h3 className="text-gray-900 font-bold text-xl leading-tight break-words" title={doc.name}>{doc.name}</h3>
                         {isCompleted ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 flex-shrink-0 mt-0.5">
                             Completed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 flex-shrink-0 mt-0.5">
                             In Progress
                           </span>
                         )}

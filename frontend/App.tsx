@@ -93,7 +93,7 @@ function App() {
   const [isLoadingTrades, setIsLoadingTrades] = useState(false);
 
   // Generate unique title for untitled documents
-  const generateUniqueTitle = useCallback((baseTitle: string = 'Untitled Document'): string => {
+  const generateUniqueTitle = useCallback((baseTitle: string = '새 문서'): string => {
     // Get all existing titles
     const existingTitles = savedDocuments.map(doc => doc.name);
 
@@ -104,7 +104,9 @@ function App() {
 
     // Find the highest number suffix
     let maxNumber = 0;
-    const regex = new RegExp(`^${baseTitle}_(\\d+)$`);
+    // Match both "새 문서 1" and "Untitled Document_1" patterns to be safe, 
+    // but we only care about the current baseTitle's numbering.
+    const regex = new RegExp(`^${baseTitle} (\\d+)$`);
 
     existingTitles.forEach(title => {
       if (title === baseTitle) {
@@ -119,7 +121,7 @@ function App() {
     });
 
     // Return next available number
-    return `${baseTitle}_${maxNumber + 1}`;
+    return `${baseTitle} ${maxNumber + 1}`;
   }, [savedDocuments]);
 
   const createNewTrade = async (): Promise<string | null> => {
@@ -130,7 +132,7 @@ function App() {
 
     try {
       // Generate unique title for new trade
-      const uniqueTitle = generateUniqueTitle('Untitled Document');
+      const uniqueTitle = generateUniqueTitle('새 문서');
 
       // Trade 초기화 API 호출 - 새 Trade와 5개의 Document를 생성
       const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
@@ -456,7 +458,7 @@ function App() {
     try {
       // 새 Trade 생성 (currentDocId가 없는 경우) - /api/trade/init/ 사용
       if (!tradeId && currentUser) {
-        const title = data.title || generateUniqueTitle('Untitled Document');
+        const title = data.title || generateUniqueTitle('새 문서');
         const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
         const response = await fetch(`${API_URL}/api/trade/init/`, {
           method: 'POST',
@@ -486,10 +488,10 @@ function App() {
         const trade = await api.getTrade(parseInt(tradeId));
 
         // 제목이 변경되었으면 Trade 제목 업데이트 (한 번만 실행)
-        // If title is empty or still "Untitled Document" without number, generate unique title
+        // If title is empty or still "Untitled Document" (any variant) or "새 문서", generate unique title
         let newTitle = data.title || '';
-        if (!newTitle || newTitle === 'Untitled Document' || newTitle === '새 무역 거래') {
-          newTitle = generateUniqueTitle('Untitled Document');
+        if (!newTitle || newTitle.startsWith('Untitled Document') || newTitle === '새 문서' || newTitle === '새 무역 거래') {
+          newTitle = generateUniqueTitle('새 문서');
         }
 
         if (trade.title !== newTitle) {
