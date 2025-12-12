@@ -103,8 +103,9 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);  // 초기값 false, useEffect에서 설정
 
-  // 채팅 목록 훅
-  const { loadMessages } = useChatList(userEmployeeId);
+  // 채팅 목록 훅 - ChatPage가 소유하고 ChatSidebar에 전달
+  const chatListHook = useChatList(userEmployeeId);
+  const { loadMessages, addChatToList } = chatListHook;
 
   // 화면 크기에 따라 사이드바 초기 상태 설정
   useEffect(() => {
@@ -251,7 +252,25 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
               if (data.type === 'init') {
                 // 채팅 세션 ID 저장 (메모리 기능용)
                 if (data.gen_chat_id) {
+                  const isNewChat = genChatId === null;
                   setGenChatId(data.gen_chat_id);
+
+                  // 새 채팅인 경우 사이드바 목록에 즉시 추가
+                  if (isNewChat) {
+                    const truncatedTitle = messageToSend.length > 30
+                      ? messageToSend.substring(0, 30) + '...'
+                      : messageToSend;
+
+                    addChatToList({
+                      gen_chat_id: data.gen_chat_id,
+                      user: 0,
+                      user_name: userEmployeeId,
+                      title: truncatedTitle,
+                      message_count: 1,
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
+                    });
+                  }
                 }
               } else if (data.type === 'text') {
                 accumulatedContent += data.content;
@@ -379,14 +398,12 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
           onSelectChat={handleSelectChat}
           onNewChat={handleNewChat}
           onChatDeleted={handleChatDeleted}
-          userEmployeeId={userEmployeeId}
           isDesktop={isDesktop}
+          chatListHook={chatListHook}
         />
 
         {/* Chat Content Area */}
-        <div className={`flex-1 flex flex-col min-h-0 transition-all duration-300 ${
-          isSidebarOpen && isDesktop ? 'lg:ml-0' : ''
-        }`}>
+        <div className="flex-1 flex flex-col min-h-0">
         {hasMessages ? (
           <div className="flex-1 overflow-y-auto px-8 py-8">
             <div className="max-w-3xl mx-auto space-y-6">
