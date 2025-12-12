@@ -492,7 +492,12 @@ function App() {
       setUserEmail(savedEmail);
       if (savedUser) {
         try {
-          setCurrentUser(JSON.parse(savedUser));
+          const user = JSON.parse(savedUser);
+          setCurrentUser(user);
+          // 관리자인 경우 관리자 페이지로 강제 이동
+          if (user.user_role === 'admin') {
+            setCurrentPage('admin');
+          }
         } catch {
           // 파싱 실패 시 무시
         }
@@ -514,6 +519,12 @@ function App() {
     setIsAuthenticated(true);
     if (user) {
       setCurrentUser(user);
+      // 관리자인 경우 관리자 페이지로 이동
+      if (user.user_role === 'admin') {
+        setCurrentPage('admin');
+      } else {
+        setCurrentPage('main');
+      }
     }
 
     // localStorage에 인증 상태 저장

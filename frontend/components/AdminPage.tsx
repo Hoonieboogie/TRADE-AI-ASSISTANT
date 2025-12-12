@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PageType } from '../App';
 import { User, Department, api } from '../utils/api';
-import { ArrowLeft, Plus, Search, Filter, ChevronDown } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import UserCreateModal from './admin/UserCreateModal';
 import UserEditModal from './admin/UserEditModal';
 import PasswordResetModal from './admin/PasswordResetModal';
@@ -97,12 +97,6 @@ export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPa
       <header className="bg-white shadow-sm sticky top-0 z-20">
         <div className="px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => onNavigate('main')}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
             <div>
               <h1 className="text-xl font-bold text-gray-900">관리자 페이지</h1>
               <p className="text-sm text-gray-500">사용자 계정 관리</p>
