@@ -865,14 +865,26 @@ class DocumentChatStreamView(View):
         enhanced_input = message
         context_parts = []
 
-        # 현재 작성 중인 문서 내용 (에디터에서 전달됨)
+        # 현재 문서 내용 컨텍스트 추가
+        # 1. 직접 작성 모드: 프론트엔드에서 전달된 document_content 사용
+        # 2. 업로드 모드: DB의 extracted_text 사용
+        current_doc_text = None
+        current_doc_mode_label = ""
+
         if document_content and document_content.strip():
-            # HTML 태그 제거하여 텍스트 추출
-            current_text = re.sub(r'<[^>]+>', ' ', document_content)
-            current_text = re.sub(r'\s+', ' ', current_text).strip()
-            if current_text:
-                context_parts.append(f"[현재 작성 중인 {document.doc_type} 문서 내용]\n{current_text[:2000]}")
-                logger.info(f"현재 에디터 내용 {len(current_text)}자 컨텍스트에 추가")
+            # 직접 작성 모드: 에디터 내용 사용
+            current_doc_text = re.sub(r'<[^>]+>', ' ', document_content)
+            current_doc_text = re.sub(r'\s+', ' ', current_doc_text).strip()
+            current_doc_mode_label = "(직접작성)"
+        elif document.doc_mode == 'upload' and document.extracted_text:
+            # 업로드 모드: DB의 extracted_text 사용
+            current_doc_text = document.extracted_text.strip()
+            current_doc_mode_label = "(업로드)"
+            logger.info(f"📄 현재 문서 업로드 모드: extracted_text 사용, {len(current_doc_text)}자")
+
+        if current_doc_text:
+            context_parts.append(f"[현재 {document.doc_type} 문서 내용 {current_doc_mode_label}]\n{current_doc_text[:2000]}")
+            logger.info(f"✅ 현재 문서 내용 {len(current_doc_text)}자 컨텍스트에 추가 {current_doc_mode_label}")
 
         # 이전 step 문서 내용 참조
         # 1. 프론트엔드에서 전달된 prev_documents 우선 사용 (직접 작성 문서)
