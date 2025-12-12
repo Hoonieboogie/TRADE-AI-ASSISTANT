@@ -230,115 +230,116 @@ function App() {
     return mapping[docType] || 1;
   };
 
-  // 백엔드에서 Trade 목록 가져오기
+  // 백엔드에서 Trade 목록 가져오기 (대시보드 최적화 API 사용)
   const fetchTrades = useCallback(async () => {
     if (!currentUser) return;
 
     setIsLoadingTrades(true);
     try {
-      const trades = await api.getTrades(currentUser.user_id);
+      // [OPTIMIZATION] Use dashboard endpoint to fetch everything in one go
+      const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/api/trade/dashboard/?user_id=${currentUser.user_id}`);
 
-      // Trade를 SavedDocument 형식으로 변환 (버전 정보 포함)
-      const documents: SavedDocument[] = await Promise.all(
-        trades.map(async (trade: Trade) => {
-          // Trade 상세 정보 가져오기 (documents 포함)
-          const tradeDetail = await api.getTrade(trade.trade_id);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch dashboard: ${response.statusText}`);
+      }
 
-          // 각 document의 versions 가져오기
-          const allVersions: { id: string; timestamp: number; data: DocumentData; step: number }[] = [];
-          const content: DocumentData = { title: trade.title };
+      const trades = await response.json();
 
-          if (tradeDetail.documents) {
-            for (const doc of tradeDetail.documents) {
-              const versions = await api.getVersions(doc.doc_id);
-              const step = docTypeToStep(doc.doc_type);
+      // Trade를 SavedDocument 형식으로 변환
+      const documents: SavedDocument[] = trades.map((trade: any) => {
+        const content: DocumentData = { title: trade.title };
+        const allVersions: { id: string; timestamp: number; data: DocumentData; step: number }[] = [];
 
-              // 최신 버전의 content를 저장
-              if (versions.length > 0) {
-                const latestVersion = versions[0].content as { html?: string; title?: string; stepModes?: Record<string, string> };
-                // HTML 문자열 복원
-                if (latestVersion.html) {
-                  content[step] = latestVersion.html;
-                }
-                // title 복원 (최신 버전에서)
-                if (latestVersion.title && !content.title) {
-                  content.title = latestVersion.title;
-                }
-                // stepModes 복원
-                if (latestVersion.stepModes && !content.stepModes) {
-                  content.stepModes = latestVersion.stepModes;
-                }
+        // Process documents from the dashboard response
+        if (trade.documents) {
+          trade.documents.forEach((doc: any) => {
+            const step = docTypeToStep(doc.doc_type);
+
+            // 1. Restore content from latest_version if available
+            if (doc.latest_version && doc.latest_version.content) {
+              const latestContent = doc.latest_version.content;
+
+              // HTML 문자열 복원
+              if (latestContent.html) {
+                content[step] = latestContent.html;
+              } else if (typeof latestContent === 'string') {
+                // Handle legacy string content
+                content[step] = latestContent;
               }
 
-              // 버전 히스토리 변환
-              versions.forEach(v => {
-                const vContent = v.content as { html?: string; title?: string };
-                allVersions.push({
-                  id: v.version_id.toString(),
-                  timestamp: new Date(v.created_at).getTime(),
-                  data: { [step]: vContent.html || vContent, title: vContent.title },
-                  step: step
-                });
+              // title 복원
+              if (latestContent.title && !content.title) {
+                content.title = latestContent.title;
+              }
+              // stepModes 복원
+              if (latestContent.stepModes && !content.stepModes) {
+                content.stepModes = latestContent.stepModes;
+              }
+
+              // Add to versions list (for sidebar)
+              allVersions.push({
+                id: doc.latest_version.version_id.toString(),
+                timestamp: new Date(doc.latest_version.created_at).getTime(),
+                data: { [step]: latestContent.html || latestContent, title: latestContent.title },
+                step: step
               });
             }
-          }
+          });
+        }
 
-          // 버전을 시간순으로 정렬 (최신순)
-          allVersions.sort((a, b) => b.timestamp - a.timestamp);
+        // 버전을 시간순으로 정렬 (최신순)
+        allVersions.sort((a, b) => b.timestamp - a.timestamp);
 
-          // 가장 최근 버전의 step을 lastStep으로 설정
-          const lastStep = allVersions.length > 0 ? allVersions[0].step : 1;
+        // 가장 최근 버전의 step을 lastStep으로 설정
+        const lastStep = allVersions.length > 0 ? allVersions[0].step : 1;
 
-          // [CHANGED] Calculate progress client-side to ensure accuracy
-          let calculatedCompletedCount = 0;
-          const totalSteps = 5;
-          const docTypes = ['offer', 'pi', 'contract', 'ci', 'pl'];
+        // Calculate progress
+        let calculatedCompletedCount = 0;
+        const totalSteps = 5;
+        const docTypes = ['offer', 'pi', 'contract', 'ci', 'pl'];
 
-          for (let i = 0; i < totalSteps; i++) {
-            const step = i + 1;
-            const docType = docTypes[i];
-            // tradeDetail.documents might be undefined if no documents
-            const doc = tradeDetail.documents?.find((d: any) => d.doc_type === docType);
+        for (let i = 0; i < totalSteps; i++) {
+          const step = i + 1;
+          const docType = docTypes[i];
+          const doc = trade.documents?.find((d: any) => d.doc_type === docType);
 
-            // 1. Check Mode (Skip / Upload)
-            if (doc) {
-              if (doc.doc_mode === 'skip') {
-                calculatedCompletedCount++;
-                continue;
-              }
-              if (doc.doc_mode === 'upload' && doc.upload_status === 'ready') {
-                calculatedCompletedCount++;
-                continue;
-              }
-            }
-
-            // 2. Check Content (Manual)
-            const stepContent = content[step];
-            if (stepContent && typeof stepContent === 'string' && checkStepCompletion(stepContent)) {
+          // 1. Check Mode (Skip / Upload)
+          if (doc) {
+            if (doc.doc_mode === 'skip') {
               calculatedCompletedCount++;
+              continue;
+            }
+            if (doc.doc_mode === 'upload' && doc.upload_status === 'ready') {
+              calculatedCompletedCount++;
+              continue;
             }
           }
 
-          const progress = Math.round((calculatedCompletedCount / totalSteps) * 100);
+          // 2. Check Content (Manual)
+          const stepContent = content[step];
+          if (stepContent && typeof stepContent === 'string' && checkStepCompletion(stepContent)) {
+            calculatedCompletedCount++;
+          }
+        }
 
-          // Force status based on calculated progress
-          const status = progress === 100 ? 'completed' : 'in-progress';
+        const progress = Math.round((calculatedCompletedCount / totalSteps) * 100);
+        const status = progress === 100 ? 'completed' : 'in-progress';
 
-          return {
-            id: trade.trade_id.toString(),
-            name: trade.title,
-            date: new Date(trade.created_at).toLocaleDateString('ko-KR').replace(/\. /g, '.').slice(0, -1),
-            completedSteps: calculatedCompletedCount,
-            totalSteps: totalSteps,
-            progress: progress,
-            status: status,
-            content: content,
-            tradeData: tradeDetail,  // documents 포함
-            versions: allVersions,
-            lastStep: lastStep,
-          };
-        })
-      );
+        return {
+          id: trade.trade_id.toString(),
+          name: trade.title,
+          date: new Date(trade.created_at).toLocaleDateString('ko-KR').replace(/\. /g, '.').slice(0, -1),
+          completedSteps: calculatedCompletedCount,
+          totalSteps: totalSteps,
+          progress: progress,
+          status: status,
+          content: content,
+          tradeData: trade,  // documents included
+          versions: allVersions,
+          lastStep: lastStep,
+        };
+      });
 
       setSavedDocuments(documents);
     } catch (error) {
@@ -572,6 +573,7 @@ function App() {
             onOpenDocument={handleOpenDocument}
             onLogoClick={handleOpenChat}
             onDeleteDocument={handleDeleteDocument}
+            isLoading={isLoadingTrades}
           />
         </div>
       )}
@@ -620,6 +622,7 @@ function App() {
             onOpenDocument={handleOpenDocument}
             onLogoClick={handleOpenChat}
             onDeleteDocument={handleDeleteDocument}
+            isLoading={isLoadingTrades}
           />
           {/* 글로우 효과 원 */}
           <div

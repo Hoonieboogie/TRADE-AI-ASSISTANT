@@ -299,6 +299,53 @@ class TradeFlowViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=False, methods=['get'])
+    def dashboard(self, request):
+        """
+        대시보드용 Trade 목록 조회 (최적화됨)
+        
+        GET /api/trade/dashboard/?user_id=...
+        """
+        from django.db.models import Prefetch
+        from .serializers import TradeDashboardSerializer
+        from .models import Document, DocVersion
+
+        user_id = request.query_params.get('user_id')
+        if not user_id:
+            return Response(
+                {'error': 'user_id가 필요합니다.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # 1. 문서 버전 Prefetch (최신순 정렬)
+            version_prefetch = Prefetch(
+                'versions',
+                queryset=DocVersion.objects.order_by('-created_at'),
+                to_attr='prefetched_versions'
+            )
+
+            # 2. 문서 Prefetch (버전 포함)
+            doc_prefetch = Prefetch(
+                'documents',
+                queryset=Document.objects.prefetch_related(version_prefetch),
+            )
+
+            # 3. Trade 조회 (문서 포함)
+            trades = TradeFlow.objects.filter(user_id=user_id)\
+                .prefetch_related(doc_prefetch)\
+                .order_by('-created_at')
+
+            serializer = TradeDashboardSerializer(trades, many=True)
+            return Response(serializer.data)
+
+        except Exception as e:
+            logger.error(f"Dashboard fetch failed: {e}")
+            return Response(
+                {'error': f'대시보드 데이터 조회 실패: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 # ==================== Document Management ====================
 

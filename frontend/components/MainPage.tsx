@@ -11,11 +11,12 @@ interface MainPageProps {
   onLogoClick: (logoRect: DOMRect) => void;
   onOpenDocument: (doc: SavedDocument) => void;
   onDeleteDocument: (docId: string) => void;
+  isLoading?: boolean;
 }
 
 
 
-export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, onLogout, onLogoClick, onOpenDocument, onDeleteDocument }: MainPageProps) {
+export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, onLogout, onLogoClick, onOpenDocument, onDeleteDocument, isLoading }: MainPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in-progress'>('all');
   const [showStatusFilter, setShowStatusFilter] = useState(false);
@@ -193,7 +194,25 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
         </div>
 
         {/* Task Cards */}
-        {filteredTasks.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-3 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="bg-white rounded-lg border border-gray-200 p-6 h-48 animate-pulse">
+                <div className="flex items-start gap-4 h-full">
+                  <div className="w-12 h-12 bg-gray-200 rounded-lg flex-shrink-0" />
+                  <div className="flex-1 flex flex-col h-full">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-3" />
+                    <div className="h-3 bg-gray-200 rounded w-1/2 mb-6" />
+                    <div className="mt-auto">
+                      <div className="h-2 bg-gray-200 rounded-full w-full mb-2" />
+                      <div className="h-2 bg-gray-200 rounded-full w-2/3" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
               <FileText className="w-10 h-10 text-gray-300" />
@@ -219,73 +238,73 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
             )}
           </div>
         ) : (
-        <div className="grid grid-cols-3 gap-4 items-start">
-          {filteredTasks.map(doc => {
-            const isCompleted = doc.status === 'completed' || doc.progress === 100;
-            const iconBg = isCompleted ? 'bg-green-50' : 'bg-blue-50';
-            const iconColor = isCompleted ? 'text-green-600' : 'text-blue-600';
+          <div className="grid grid-cols-3 gap-4 items-start">
+            {filteredTasks.map(doc => {
+              const isCompleted = doc.status === 'completed' || doc.progress === 100;
+              const iconBg = isCompleted ? 'bg-green-50' : 'bg-blue-50';
+              const iconColor = isCompleted ? 'text-green-600' : 'text-blue-600';
 
-            return (
-              <div
-                key={doc.id}
-                onClick={() => onOpenDocument(doc)}
-                className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow h-full cursor-pointer group"
-              >
-                <div className="flex items-start gap-4 h-full">
-                  <div
-                    className={`w-12 h-12 ${iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}
-                  >
-                    <FileText className={`w-6 h-6 ${iconColor}`} />
-                  </div>
-                  <div className="flex-1 flex flex-col">
-                    <div className="flex items-center gap-2 mb-3">
-                      <h3 className="text-gray-900 font-medium line-clamp-1" title={doc.name}>{doc.name}</h3>
-                      {isCompleted ? (
-                        <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs flex-shrink-0">
-                          <CheckCircle className="w-3 h-3" />
-                          완료
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-1 rounded-md text-xs flex-shrink-0">
-                          <Clock className="w-3 h-3" />
-                          진행중
-                        </span>
-                      )}
+              return (
+                <div
+                  key={doc.id}
+                  onClick={() => onOpenDocument(doc)}
+                  className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow h-full cursor-pointer group"
+                >
+                  <div className="flex items-start gap-4 h-full">
+                    <div
+                      className={`w-12 h-12 ${iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}
+                    >
+                      <FileText className={`w-6 h-6 ${iconColor}`} />
                     </div>
-                    <p className="text-gray-500 text-sm mb-3">{doc.date}</p>
-
-                    {/* Progress Bar */}
-                    <div className="mb-4">
-                      <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>진행률</span>
-                        <span>{doc.progress}% ({doc.completedSteps}/{doc.totalSteps})</span>
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex items-center gap-2 mb-3">
+                        <h3 className="text-gray-900 font-medium line-clamp-1" title={doc.name}>{doc.name}</h3>
+                        {isCompleted ? (
+                          <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs flex-shrink-0">
+                            <CheckCircle className="w-3 h-3" />
+                            완료
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-1 rounded-md text-xs flex-shrink-0">
+                            <Clock className="w-3 h-3" />
+                            진행중
+                          </span>
+                        )}
                       </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
-                          style={{ width: `${doc.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
+                      <p className="text-gray-500 text-sm mb-3">{doc.date}</p>
 
-                    <div className="flex justify-end mt-auto">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(doc);
-                        }}
-                        className="text-gray-400 hover:text-red-600 text-sm transition-colors font-medium p-2 rounded-full hover:bg-red-50"
-                        title="삭제"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      {/* Progress Bar */}
+                      <div className="mb-4">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>진행률</span>
+                          <span>{doc.progress}% ({doc.completedSteps}/{doc.totalSteps})</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
+                            style={{ width: `${doc.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end mt-auto">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(doc);
+                          }}
+                          className="text-gray-400 hover:text-red-600 text-sm transition-colors font-medium p-2 rounded-full hover:bg-red-50"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
         )}
       </main>
 

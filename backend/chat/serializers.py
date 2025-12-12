@@ -78,6 +78,36 @@ class DocumentSerializer(serializers.ModelSerializer):
         return obj.versions.count()
 
 
+class DocumentDashboardSerializer(DocumentSerializer):
+    """대시보드용 문서 Serializer (최신 버전 포함)"""
+    latest_version = serializers.SerializerMethodField()
+
+    class Meta(DocumentSerializer.Meta):
+        fields = DocumentSerializer.Meta.fields + ['latest_version']
+
+    def get_latest_version(self, obj):
+        # prefetch_related로 가져온 versions 중 첫 번째 (최신)
+        # ViewSet에서 Prefetch로 정렬해두어야 함
+        versions = getattr(obj, 'prefetched_versions', None)
+        if versions and len(versions) > 0:
+            return DocVersionSerializer(versions[0]).data
+        
+        # Fallback (N+1 발생 가능하므로 prefetch 권장)
+        latest = obj.versions.order_by('-created_at').first()
+        if latest:
+            return DocVersionSerializer(latest).data
+        return None
+
+
+class TradeDashboardSerializer(TradeFlowSerializer):
+    """대시보드용 Trade Serializer (문서 목록 포함)"""
+    documents = DocumentDashboardSerializer(many=True, read_only=True)
+
+    class Meta(TradeFlowSerializer.Meta):
+        fields = TradeFlowSerializer.Meta.fields + ['documents']
+
+
+
 class DocMessageSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source='get_role_display', read_only=True)
 
