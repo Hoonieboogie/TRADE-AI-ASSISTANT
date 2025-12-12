@@ -168,6 +168,40 @@ class PasswordChangeView(APIView):
         return Response({'message': '비밀번호가 성공적으로 변경되었습니다.'})
 
 
+class PasswordResetView(APIView):
+    """관리자용 비밀번호 초기화 API"""
+
+    def post(self, request):
+        user_id = request.data.get('user_id')
+
+        # 필수 필드 검증
+        if not user_id:
+            return Response(
+                {'error': 'user_id는 필수입니다.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(user_id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': '사용자를 찾을 수 없습니다.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 비밀번호를 "a123456!"로 초기화
+        user.set_password('a123456!')
+        user.save()
+
+        logger.info(f"Password reset for user: {user.emp_no} (user_id: {user_id})")
+
+        return Response({
+            'message': '비밀번호가 초기화되었습니다.',
+            'user_id': user.user_id,
+            'emp_no': user.emp_no
+        })
+
+
 # =============================================================================
 # Department Views
 # =============================================================================
