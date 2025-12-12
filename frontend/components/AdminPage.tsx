@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PageType } from '../App';
 import { User, Department, api } from '../utils/api';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ChevronDown, Check } from 'lucide-react';
 import UserCreateModal from './admin/UserCreateModal';
 import UserEditModal from './admin/UserEditModal';
 import PasswordResetModal from './admin/PasswordResetModal';
@@ -11,6 +11,97 @@ interface AdminPageProps {
   onNavigate: (page: PageType) => void;
   currentUser: User;
   onLogout: () => void;
+}
+
+// 커스텀 드롭다운 컴포넌트
+interface DropdownOption<T> {
+  value: T;
+  label: string;
+}
+
+interface FilterDropdownProps<T> {
+  options: DropdownOption<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  placeholder?: string;
+}
+
+function FilterDropdown<T extends string | number | null>({
+  options,
+  value,
+  onChange,
+  placeholder
+}: FilterDropdownProps<T>) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => opt.value === value);
+  const displayLabel = selectedOption?.label || placeholder || '선택';
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`
+          flex items-center justify-between gap-2 px-4 py-2 min-w-[120px]
+          bg-white border rounded-lg transition-all duration-200
+          ${isOpen
+            ? 'border-blue-500 ring-2 ring-blue-100'
+            : 'border-gray-300 hover:border-gray-400'
+          }
+        `}
+      >
+        <span className={`text-sm ${value === null || value === 'all' ? 'text-gray-500' : 'text-gray-900'}`}>
+          {displayLabel}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {/* 드롭다운 메뉴 */}
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-full min-w-[140px] bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden animate-dropdown">
+          {options.map((option, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`
+                w-full px-4 py-2.5 text-left text-sm flex items-center justify-between
+                transition-colors duration-150
+                ${option.value === value
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-50'
+                }
+              `}
+            >
+              <span>{option.label}</span>
+              {option.value === value && (
+                <Check className="w-4 h-4 text-blue-600" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPageProps) {
@@ -130,40 +221,36 @@ export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPa
             </div>
 
             {/* Department Filter */}
-            <select
-              value={deptFilter ?? ''}
-              onChange={(e) => setDeptFilter(e.target.value ? Number(e.target.value) : null)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">전체 부서</option>
-              {departments.map(dept => (
-                <option key={dept.dept_id} value={dept.dept_id}>
-                  {dept.dept_name}
-                </option>
-              ))}
-            </select>
+            <FilterDropdown
+              options={[
+                { value: null, label: '전체 부서' },
+                ...departments.map(dept => ({ value: dept.dept_id, label: dept.dept_name }))
+              ]}
+              value={deptFilter}
+              onChange={setDeptFilter}
+            />
 
             {/* Role Filter */}
-            <select
+            <FilterDropdown
+              options={[
+                { value: 'all', label: '전체 역할' },
+                { value: 'admin', label: '관리자' },
+                { value: 'user', label: '사용자' },
+              ]}
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as 'all' | 'user' | 'admin')}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">전체 역할</option>
-              <option value="admin">관리자</option>
-              <option value="user">사용자</option>
-            </select>
+              onChange={(v) => setRoleFilter(v as 'all' | 'user' | 'admin')}
+            />
 
             {/* Status Filter */}
-            <select
+            <FilterDropdown
+              options={[
+                { value: 'all', label: '전체 상태' },
+                { value: 'active', label: '활성' },
+                { value: 'inactive', label: '비활성' },
+              ]}
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">전체 상태</option>
-              <option value="active">활성</option>
-              <option value="inactive">비활성</option>
-            </select>
+              onChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}
+            />
           </div>
 
           {/* Add User Button */}
@@ -330,6 +417,23 @@ export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPa
           setDeletingUser(null);
         }}
       />
+
+      {/* 드롭다운 애니메이션 스타일 */}
+      <style>{`
+        @keyframes dropdown-appear {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-dropdown {
+          animation: dropdown-appear 0.15s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
