@@ -301,13 +301,16 @@ class ChatStreamView(View):
                         logger.info(f"✅ 기존 GenChat 조회 성공: gen_chat_id={gen_chat_id}")
                     except GenChat.DoesNotExist:
                         logger.warning(f"⚠️ GenChat 조회 실패, 새로 생성: gen_chat_id={gen_chat_id}")
-                        gen_chat = GenChat.objects.create(user=user, title="일반 채팅")
+                        # 첫 메시지 기반 제목 설정 (30자 제한)
+                        initial_title = message[:30] + "..." if len(message) > 30 else message
+                        gen_chat = GenChat.objects.create(user=user, title=initial_title)
                         is_first_message = True
                 else:
-                    # gen_chat_id가 없으면 새 채팅방 생성
-                    gen_chat = GenChat.objects.create(user=user, title="일반 채팅")
+                    # gen_chat_id가 없으면 새 채팅방 생성 (첫 메시지 기반 제목)
+                    initial_title = message[:30] + "..." if len(message) > 30 else message
+                    gen_chat = GenChat.objects.create(user=user, title=initial_title)
                     is_first_message = True
-                    logger.info(f"✅ 새 GenChat 생성: gen_chat_id={gen_chat.gen_chat_id}")
+                    logger.info(f"✅ 새 GenChat 생성: gen_chat_id={gen_chat.gen_chat_id}, title={initial_title}")
 
                 # 사용자 메시지 저장
                 user_msg = GenMessage.objects.create(
