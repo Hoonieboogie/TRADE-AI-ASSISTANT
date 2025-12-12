@@ -291,13 +291,16 @@ export default function DocumentCreationPage({
 
   // Helper to check completion status for a specific step
   const getStepCompletionStatus = (stepNumber: number): boolean => {
-    if (uploadedFiles[stepNumber] || uploadedFileNames[stepNumber]) return true;
     if (stepModes[stepNumber] === 'skip') return true;
 
-    if (stepNumber <= 3) {
-      if (stepModes[stepNumber] === 'upload' && !uploadedFiles[stepNumber] && !uploadedFileNames[stepNumber]) return false;
+    if (stepModes[stepNumber] === 'upload') {
+      // [CHANGED] Only allow navigation if upload is fully ready (complete)
+      // Previously: if (uploadedFiles[stepNumber] || uploadedFileNames[stepNumber]) return true;
+      return uploadStatus[stepNumber] === 'ready';
+    }
 
-      // 항상 documentData 사용 (Step 이동 시 handleStepChange에서 저장됨)
+    if (stepNumber <= 3) {
+      // Manual mode check
       const stepContent = documentData[stepNumber] || hydrateTemplate(getTemplateForStep(stepNumber));
       return checkStepCompletion(stepContent);
     } else {
