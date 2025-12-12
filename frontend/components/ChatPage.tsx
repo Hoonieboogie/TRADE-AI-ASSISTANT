@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Search, MessageCircle, FileText, TrendingUp, LogOut, User, Globe, Database, Wrench } from 'lucide-react';
+import { Send, Sparkles, Search, TrendingUp, LogOut, User, Globe, Database, Wrench, ShieldAlert, Scale } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { PageType } from '../App';
 import PasswordChangeModal from './document-creation/modals/PasswordChangeModal';
@@ -40,14 +40,14 @@ const getToolIcon = (iconName: string) => {
 
 const suggestedQuestions = [
   {
-    icon: FileText,
-    title: 'LC란 무엇인가요?',
-    description: '신용장의 개념과 종류'
+    icon: ShieldAlert,
+    title: '지역별 무역사기 예방법',
+    description: '지역별 사기 수법과 대응'
   },
   {
-    icon: MessageCircle,
-    title: 'BL 작성 방법이 궁금해요',
-    description: '선하증권 작성 가이드'
+    icon: Scale,
+    title: 'UCP 600 핵심 정리',
+    description: '신용장 통일규칙 가이드'
   },
   {
     icon: TrendingUp,
