@@ -961,36 +961,44 @@ export default function DocumentCreationPage({
   };
 
   const handleVersionRestore = (version: Version) => {
-    if (onRestore) {
-      onRestore(version);
-      setShowVersionHistory(false);
+    if (!onRestore) return;
 
-      const step = version.step;
+    const step = version.step;
+    const restoredContent = version.data[step];
 
-      if (step <= 3) {
-        setCurrentStep(step);
-        setStepModes(prev => ({ ...prev, [step]: 'manual' }));
-      } else {
-        setCurrentStep(4);
-        if (step === 4) setActiveShippingDoc('CI');
-        if (step === 5) setActiveShippingDoc('PL');
-      }
-
-      setTimeout(() => {
-        setEditorKey(prev => prev + 1);
-      }, 50);
+    // 1. 복원된 내용에서 sharedData 추출 (updateContentWithSharedData가 덮어쓰지 않도록)
+    if (restoredContent) {
+      extractData(restoredContent);
     }
+
+    // 2. documentData 업데이트
+    onRestore(version);
+    setDocumentData((prev: DocumentData) => ({ ...prev, [step]: restoredContent }));
+
+    // 3. UI 상태 업데이트
+    setShowVersionHistory(false);
+    if (step <= 3) {
+      setCurrentStep(step);
+      setStepModes(prev => ({ ...prev, [step]: 'manual' }));
+    } else {
+      setCurrentStep(4);
+      setActiveShippingDoc(step === 4 ? 'CI' : 'PL');
+    }
+
+    // 4. 에디터 리마운트
+    setEditorKey(prev => prev + 1);
   };
 
   // Calculate doc key for current step
   const currentDocKey = getDocKeyForStep(currentStep);
 
-  // Get initial content for editor (memoized to prevent unnecessary reloads)
+  // Get initial content for editor
+  // editorKey를 의존성에 추가하여 버전 복원 시 재계산되도록 함
   const initialContent = useMemo((): string => {
     if (currentDocKey === -1) return '';
     const content = documentData[currentDocKey] || hydrateTemplate(getTemplateForStep(currentDocKey));
     return updateContentWithSharedData(content);
-  }, [currentDocKey, documentData[currentDocKey], sharedData]);
+  }, [currentDocKey, documentData[currentDocKey], sharedData, editorKey]);
 
   const renderStepHeaderControls = () => {
     // 1. Left Side Content (Back Button)
@@ -1212,6 +1220,7 @@ export default function DocumentCreationPage({
         stepModes={stepModes}
         activeShippingDoc={activeShippingDoc}
         editorRef={editorRef}
+        editorKey={editorKey}
         initialContent={initialContent || getTemplateForStep(currentStep === 4 ? (activeShippingDoc === 'CI' ? 4 : 5) : currentStep)}
         onBack={() => {
           if (currentStep === 4 && activeShippingDoc) {
