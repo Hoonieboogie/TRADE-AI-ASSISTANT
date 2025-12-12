@@ -3,6 +3,7 @@ import MainPage from './components/MainPage';
 import ChatPage from './components/ChatPage';
 import DocumentCreationPage from './components/DocumentCreationPage';
 import LoginPage from './components/LoginPage';
+import AdminPage from './components/AdminPage';
 import { User, api, Trade } from './utils/api';
 import { checkStepCompletion, hydrateTemplate } from './utils/documentUtils';
 import { offerSheetTemplateHTML } from './templates/offerSheet';
@@ -11,7 +12,7 @@ import { saleContractTemplateHTML } from './templates/saleContract';
 import { commercialInvoiceTemplateHTML } from './templates/commercialInvoice';
 import { packingListTemplateHTML } from './templates/packingList';
 
-export type PageType = 'main' | 'chat' | 'documents';
+export type PageType = 'main' | 'chat' | 'documents' | 'admin';
 export type TransitionType = 'none' | 'expanding' | 'shrinking';
 
 export interface DocumentData {
@@ -572,6 +573,7 @@ function App() {
             onOpenDocument={handleOpenDocument}
             onLogoClick={handleOpenChat}
             onDeleteDocument={handleDeleteDocument}
+            currentUser={currentUser}
           />
         </div>
       )}
@@ -620,6 +622,7 @@ function App() {
             onOpenDocument={handleOpenDocument}
             onLogoClick={handleOpenChat}
             onDeleteDocument={handleDeleteDocument}
+            currentUser={currentUser}
           />
           {/* 글로우 효과 원 */}
           <div
@@ -680,6 +683,15 @@ function App() {
           }}
           initialActiveShippingDoc={currentActiveShippingDoc}
           getDocId={getDocId}
+        />
+      )}
+
+      {/* 관리자 페이지 */}
+      {currentPage === 'admin' && currentUser?.user_role === 'admin' && (
+        <AdminPage
+          onNavigate={handleNavigate}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
       )}
 

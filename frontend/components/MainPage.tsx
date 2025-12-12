@@ -1,7 +1,8 @@
-import { FileText, Plus, ChevronDown, LogOut, CheckCircle, Clock, Search, Filter, User, Sparkles, Trash2 } from 'lucide-react';
+import { FileText, Plus, ChevronDown, LogOut, CheckCircle, Clock, Search, Filter, User, Sparkles, Trash2, Settings } from 'lucide-react';
 import { PageType, SavedDocument } from '../App';
 import { useState, useEffect, useRef } from 'react';
 import PasswordChangeModal from './document-creation/modals/PasswordChangeModal';
+import { User as UserType } from '../utils/api';
 
 interface MainPageProps {
   onNavigate: (page: PageType) => void;
@@ -11,11 +12,12 @@ interface MainPageProps {
   onLogoClick: (logoRect: DOMRect) => void;
   onOpenDocument: (doc: SavedDocument) => void;
   onDeleteDocument: (docId: string) => void;
+  currentUser?: UserType | null;
 }
 
 
 
-export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, onLogout, onLogoClick, onOpenDocument, onDeleteDocument }: MainPageProps) {
+export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, onLogout, onLogoClick, onOpenDocument, onDeleteDocument, currentUser }: MainPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'in-progress'>('all');
   const [showStatusFilter, setShowStatusFilter] = useState(false);
@@ -97,6 +99,15 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
 
           {/* Right: User Info and Logout */}
           <div className="flex items-center gap-4">
+            {currentUser?.user_role === 'admin' && (
+              <button
+                onClick={() => onNavigate('admin')}
+                className="text-gray-600 hover:text-gray-900 text-sm flex items-center gap-1 transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+                관리자
+              </button>
+            )}
             <button
               onClick={() => setShowMyPageModal(!showMyPageModal)}
               className="text-gray-600 hover:text-gray-900 text-sm flex items-center gap-1 transition-colors"
