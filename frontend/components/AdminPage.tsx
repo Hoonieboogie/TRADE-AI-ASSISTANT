@@ -102,17 +102,12 @@ export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPa
               <p className="text-sm text-gray-500">사용자 계정 관리</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
-              {currentUser.name} ({currentUser.emp_no})
-            </span>
-            <button
-              onClick={onLogout}
-              className="text-gray-600 hover:text-gray-900 text-sm transition-colors"
-            >
-              로그아웃
-            </button>
-          </div>
+          <button
+            onClick={onLogout}
+            className="text-gray-600 hover:text-gray-900 text-sm transition-colors"
+          >
+            로그아웃
+          </button>
         </div>
       </header>
 
