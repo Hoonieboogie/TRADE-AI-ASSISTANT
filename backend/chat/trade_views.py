@@ -735,7 +735,8 @@ class DocumentChatStreamView(View):
         "doc_id": 1,           # 필수: Document ID
         "message": "...",      # 필수
         "user_id": "emp001",   # 선택: 로그인 사용자
-        "document_content": ""  # 선택: 현재 화면 에디터 내용
+        "document_content": "",  # 선택: 현재 화면 에디터 내용
+        "prev_documents": {}   # 선택: 이전 step 문서 내용 (저장 여부 무관, 실시간 전달)
     }
     """
 
@@ -746,8 +747,9 @@ class DocumentChatStreamView(View):
             user_id = data.get('user_id')
             message = data.get('message')
             document_content = data.get('document_content', '')
+            prev_documents = data.get('prev_documents', {})  # 이전 step 문서 내용
 
-            logger.info(f"DocumentChatStreamView: doc_id={doc_id}, user_id={user_id}, message={message[:50] if message else 'None'}, doc_content_len={len(document_content)}")
+            logger.info(f"DocumentChatStreamView: doc_id={doc_id}, user_id={user_id}, message={message[:50] if message else 'None'}, doc_content_len={len(document_content)}, prev_docs={list(prev_documents.keys())}")
         except json.JSONDecodeError:
             return StreamingHttpResponse(
                 f"data: {json.dumps({'type': 'error', 'error': 'Invalid JSON'})}\n\n",
@@ -767,15 +769,17 @@ class DocumentChatStreamView(View):
             )
 
         response = StreamingHttpResponse(
-            self.stream_response(doc_id, user_id, message, document_content),
+            self.stream_response(doc_id, user_id, message, document_content, prev_documents),
             content_type='text/event-stream'
         )
         response['Cache-Control'] = 'no-cache'
         response['X-Accel-Buffering'] = 'no'
         return response
 
-    def stream_response(self, doc_id, user_id, message, document_content=''):
+    def stream_response(self, doc_id, user_id, message, document_content='', prev_documents=None):
         """문서 Agent 스트리밍 응답 생성기"""
+        if prev_documents is None:
+            prev_documents = {}
 
         # 1. Document 조회
         try:
@@ -870,32 +874,78 @@ class DocumentChatStreamView(View):
                 context_parts.append(f"[현재 작성 중인 {document.doc_type} 문서 내용]\n{current_text[:2000]}")
                 logger.info(f"현재 에디터 내용 {len(current_text)}자 컨텍스트에 추가")
 
-        # 이전 step 문서 내용 참조 (RDS DocVersion에서 직접 조회 - 더 신뢰성 있음)
+        # 이전 step 문서 내용 참조
+        # 1. 프론트엔드에서 전달된 prev_documents 우선 사용 (직접 작성 문서)
+        # 2. 업로드 문서는 DB의 extracted_text 조회
+        # prev_documents: { "offer": { "type": "manual"|"upload", "content": "..." }, ... }
+        prev_doc_contents = []
+
+        # 문서 타입 표시명 매핑
+        doc_type_display = {
+            'offer': 'Offer Sheet',
+            'pi': 'Proforma Invoice',
+            'contract': 'Sales Contract',
+            'ci': 'Commercial Invoice',
+            'pl': 'Packing List'
+        }
+
+        # 이전 문서 조회 (현재 문서 제외)
         try:
             sibling_docs = Document.objects.filter(trade_id=trade_id).exclude(doc_id=doc_id)
-            prev_doc_contents = []
-            for sibling_doc in sibling_docs:
-                # 가장 최근 버전 가져오기
-                latest_version = DocVersion.objects.filter(doc=sibling_doc).order_by('-created_at').first()
-                if latest_version and latest_version.content:
-                    content_data = latest_version.content
-                    # 필드명: 'html' (프론트엔드에서 저장하는 필드명)
-                    html_content = ''
-                    if isinstance(content_data, dict):
-                        html_content = content_data.get('html', '') or content_data.get('html_content', '')
-                    else:
-                        html_content = str(content_data)
+            processed_doc_types = set()  # 이미 처리된 문서 타입 추적
 
-                    if html_content and html_content.strip():
-                        # HTML 태그 제거하여 순수 텍스트 추출
-                        text_content = re.sub(r'<[^>]+>', ' ', html_content)
-                        text_content = re.sub(r'\s+', ' ', text_content).strip()
-                        if text_content:
-                            prev_doc_contents.append(f"  [{sibling_doc.doc_type}]\n{text_content[:1500]}")
+            for sibling_doc in sibling_docs:
+                doc_type = sibling_doc.doc_type
+                display_name = doc_type_display.get(doc_type, doc_type)
+                text_content = None
+                mode_label = ""
+
+                # 1. 프론트엔드에서 전달된 데이터 확인 (직접 작성 문서)
+                if prev_documents and doc_type in prev_documents:
+                    doc_info = prev_documents[doc_type]
+                    if doc_info:
+                        content = doc_info.get('content', '')
+                        mode = doc_info.get('type', 'manual')
+
+                        if content and content.strip():
+                            # HTML 태그 제거하여 순수 텍스트 추출
+                            text_content = re.sub(r'<[^>]+>', ' ', content)
+                            text_content = re.sub(r'\s+', ' ', text_content).strip()
+                            mode_label = "(업로드)" if mode == 'upload' else "(직접작성)"
+
+                # 2. 프론트엔드 데이터가 없으면 DB에서 조회
+                if not text_content:
+                    # 업로드 문서: extracted_text 사용
+                    if sibling_doc.doc_mode == 'upload' and sibling_doc.extracted_text:
+                        text_content = sibling_doc.extracted_text.strip()
+                        mode_label = "(업로드)"
+                        logger.info(f"📄 업로드 문서 extracted_text 사용: {doc_type}, {len(text_content)}자")
+
+                    # 직접 작성 문서: DocVersion에서 조회
+                    elif sibling_doc.doc_mode == 'manual':
+                        latest_version = DocVersion.objects.filter(doc=sibling_doc).order_by('-created_at').first()
+                        if latest_version and latest_version.content:
+                            content_data = latest_version.content
+                            html_content = ''
+                            if isinstance(content_data, dict):
+                                html_content = content_data.get('html', '') or content_data.get('html_content', '')
+                            else:
+                                html_content = str(content_data)
+
+                            if html_content and html_content.strip():
+                                text_content = re.sub(r'<[^>]+>', ' ', html_content)
+                                text_content = re.sub(r'\s+', ' ', text_content).strip()
+                                mode_label = "(직접작성)"
+
+                # 컨텍스트에 추가
+                if text_content and doc_type not in processed_doc_types:
+                    prev_doc_contents.append(f"  [{display_name} {mode_label}]\n{text_content[:1500]}")
+                    processed_doc_types.add(doc_type)
 
             if prev_doc_contents:
                 context_parts.append(f"[이전 step 문서 내용 - 참조용]\n" + "\n\n".join(prev_doc_contents))
-                logger.info(f"이전 문서 {len(prev_doc_contents)}개 내용을 컨텍스트에 추가")
+                logger.info(f"✅ 이전 문서 {len(prev_doc_contents)}개 내용을 컨텍스트에 추가")
+
         except Exception as e:
             logger.error(f"이전 문서 조회 오류: {e}")
 

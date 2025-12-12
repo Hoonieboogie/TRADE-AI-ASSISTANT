@@ -48,6 +48,12 @@ interface PreviewState {
   messageId?: string;  // 적용 완료 상태 추적용
 }
 
+// 이전 문서 정보 타입
+interface PrevDocument {
+  type: 'manual' | 'upload' | 'skip';
+  content: string;  // manual: HTML, upload: extracted text 또는 URL
+}
+
 interface ChatAssistantProps {
   currentStep: number;
   onClose?: () => void;
@@ -57,9 +63,11 @@ interface ChatAssistantProps {
   userEmployeeId?: string; // 사용자 사원번호 (세션 관리용)
   getDocId?: (step: number, shippingDoc?: 'CI' | 'PL' | null) => number | null; // step에서 doc_id 가져오기 함수
   activeShippingDoc?: 'CI' | 'PL' | null; // 현재 활성화된 선적서류 타입 (Step 4에서 CI/PL 구분용)
+  documentData?: Record<string | number, string | undefined>; // 모든 step의 문서 내용 (이전 문서 참조용)
+  stepModes?: Record<number, 'manual' | 'upload' | 'skip' | null>; // 각 step의 작성 모드
 }
 
-export default function ChatAssistant({ currentStep, onClose, editorRef, onApply, documentId, userEmployeeId, getDocId, activeShippingDoc }: ChatAssistantProps) {
+export default function ChatAssistant({ currentStep, onClose, editorRef, onApply, documentId, userEmployeeId, getDocId, activeShippingDoc, documentData, stepModes }: ChatAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -433,6 +441,57 @@ ${documentContent}
 
     const documentContent = editorRef.current?.getContent() || '';
 
+    // 이전 step 문서 내용 구성 (저장 여부와 무관하게 실시간 데이터 전달)
+    const buildPrevDocuments = (): Record<string, PrevDocument> => {
+      const docTypeMap: Record<number, string> = {
+        1: 'offer',
+        2: 'pi',
+        3: 'contract',
+        4: 'ci',
+        5: 'pl'
+      };
+
+      const prevDocs: Record<string, PrevDocument> = {};
+
+      if (documentData && stepModes) {
+        // 현재 step 이전의 모든 문서 수집
+        for (let step = 1; step <= 5; step++) {
+          // 현재 step은 제외 (document_content로 이미 전달)
+          if (step === currentStep) continue;
+          // Step 4에서 activeShippingDoc에 따라 CI(4) 또는 PL(5) 중 하나만 현재 step
+          if (currentStep === 4 && activeShippingDoc === 'CI' && step === 4) continue;
+          if (currentStep === 4 && activeShippingDoc === 'PL' && step === 5) continue;
+
+          const docType = docTypeMap[step];
+          const mode = stepModes[step];
+          const content = documentData[step];
+
+          // mode가 있으면 prevDocs에 추가
+          // - manual/skip: content가 있어야 추가
+          // - upload: content 없어도 추가 (백엔드에서 DB의 extracted_text 조회)
+          if (mode) {
+            if (mode === 'upload') {
+              // 업로드 문서: content 없어도 mode 정보 전달 → 백엔드에서 extracted_text 조회
+              prevDocs[docType] = {
+                type: mode,
+                content: content && typeof content === 'string' ? content : ''
+              };
+            } else if (content && typeof content === 'string' && content.trim()) {
+              // 직접작성/skip 문서: content가 있을 때만 추가
+              prevDocs[docType] = {
+                type: mode,
+                content: content
+              };
+            }
+          }
+        }
+      }
+
+      return prevDocs;
+    };
+
+    const prevDocuments = buildPrevDocuments();
+
     // Django 스트리밍 사용 여부
     if (USE_DJANGO) {
       // doc_id 기반 채팅 (currentDocId 사용 - 이미 documentId 또는 getDocId 결과가 반영됨)
@@ -444,7 +503,8 @@ ${documentContent}
         currentDocId,
         effectiveDocId,
         currentStep,
-        userEmployeeId
+        userEmployeeId,
+        prevDocuments: Object.keys(prevDocuments)
       });
 
       if (!effectiveDocId) {
@@ -467,7 +527,8 @@ ${documentContent}
             doc_id: effectiveDocId,
             message: currentInput,
             user_id: userEmployeeId,
-            document_content: documentContent  // 현재 작성 중인 문서 내용 전달
+            document_content: documentContent,  // 현재 작성 중인 문서 내용 전달
+            prev_documents: prevDocuments  // 이전 step 문서 내용 전달
           })
         });
 
