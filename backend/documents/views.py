@@ -227,6 +227,37 @@ class UserViewSet(viewsets.ModelViewSet):
             return UserCreateSerializer
         return UserSerializer
 
+    def get_queryset(self):
+        """검색 및 필터링"""
+        from django.db.models import Q
+
+        queryset = super().get_queryset()
+
+        # 검색어 (이름 또는 사원번호)
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(emp_no__icontains=search)
+            )
+
+        # 부서 필터
+        dept_id = self.request.query_params.get('dept_id')
+        if dept_id:
+            queryset = queryset.filter(dept_id=dept_id)
+
+        # 활성 상태 필터
+        activation = self.request.query_params.get('activation')
+        if activation is not None and activation != '':
+            queryset = queryset.filter(activation=activation.lower() == 'true')
+
+        # 역할 필터
+        user_role = self.request.query_params.get('user_role')
+        if user_role:
+            queryset = queryset.filter(user_role=user_role)
+
+        # 기본 정렬: 사원번호 오름차순
+        return queryset.order_by('emp_no')
+
 
 # =============================================================================
 # TradeFlow Views
