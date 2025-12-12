@@ -338,7 +338,8 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
 
                     {/* Document Badges */}
                     <div className="flex flex-wrap gap-1.5">
-                      {['offer', 'pi', 'contract', 'ci', 'pl'].map((type) => {
+                      {['offer', 'pi', 'contract', 'ci', 'pl'].map((type, index) => {
+                        const stepNumber = index + 1;
                         const docNames: Record<string, string> = {
                           'offer': 'Offer Sheet',
                           'pi': 'Proforma Invoice',
@@ -347,23 +348,51 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                           'pl': 'Packing List',
                         };
 
-                        // Check existence
-                        const exists = doc.tradeData?.documents?.some((d: any) => d.doc_type === type);
+                        // Helper to check completion for a specific step
+                        const checkCompletion = (step: number) => {
+                          const stepType = ['offer', 'pi', 'contract', 'ci', 'pl'][step - 1];
 
-                        // Check completion status
-                        // 1. Content exists AND is complete (all required fields filled)
-                        const contentKey = type === 'pl' ? 5 : type === 'ci' ? 4 : type === 'contract' ? 3 : type === 'pi' ? 2 : 1;
-                        const stepContent = doc.content && doc.content[contentKey];
-                        const hasContent = stepContent && typeof stepContent === 'string' && checkStepCompletion(stepContent);
+                          // 1. Content exists AND is complete
+                          const contentKey = step === 5 ? 5 : step === 4 ? 4 : step === 3 ? 3 : step === 2 ? 2 : 1;
+                          const stepContent = doc.content && doc.content[contentKey];
+                          const hasContent = stepContent && typeof stepContent === 'string' && checkStepCompletion(stepContent);
 
-                        // 2. Uploaded or Skipped (check tradeData)
-                        const tradeDoc = doc.tradeData?.documents?.find((d: any) => d.doc_type === type);
-                        const isUploaded = tradeDoc?.upload_status === 'ready';
-                        const isSkipped = tradeDoc?.doc_mode === 'skip';
+                          // 2. Uploaded or Skipped
+                          const tradeDoc = doc.tradeData?.documents?.find((d: any) => d.doc_type === stepType);
+                          const isUploaded = tradeDoc?.upload_status === 'ready';
+                          const isSkipped = tradeDoc?.doc_mode === 'skip';
 
-                        const isDocCompleted = hasContent || isUploaded || isSkipped;
+                          return hasContent || isUploaded || isSkipped;
+                        };
 
-                        if (!exists && !isDocCompleted) return null;
+                        const isDocCompleted = checkCompletion(stepNumber);
+
+                        // Check accessibility
+                        // Accessible if:
+                        // 1. It's the first step
+                        // 2. OR the previous step is complete
+                        // 3. OR the step itself is already started/complete (to ensure access to existing work)
+                        let isAccessible = stepNumber === 1;
+                        if (stepNumber > 1) {
+                          const prevStepComplete = checkCompletion(stepNumber - 1);
+                          isAccessible = prevStepComplete || isDocCompleted;
+                        }
+
+                        // If not accessible, render as disabled
+                        if (!isAccessible) {
+                          return (
+                            <span
+                              key={type}
+                              className="px-2 py-1 rounded-full text-[10.5px] font-medium flex items-center gap-1 relative overflow-hidden bg-gray-50 text-gray-300 cursor-not-allowed border border-gray-100"
+                              style={{
+                                backgroundImage: 'linear-gradient(45deg, transparent 46%, #e5e7eb 46%, #e5e7eb 54%, transparent 54%)'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {docNames[type]}
+                            </span>
+                          );
+                        }
 
                         // Determine if this is the "active" (last updated) document
                         let isActive = false;
