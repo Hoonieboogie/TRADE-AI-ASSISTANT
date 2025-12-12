@@ -271,6 +271,15 @@ class TradeFlowViewSet(viewsets.ModelViewSet):
 
         return Response(TradeFlowDetailSerializer(trade_flow).data)
 
+    def destroy(self, request, *args, **kwargs):
+        """Trade 삭제 (S3, Qdrant, Mem0, RDS 포함)"""
+        from .services import delete_trade_with_resources
+
+        trade_flow = self.get_object()
+        delete_trade_with_resources(trade_flow)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # =============================================================================
 # Document Views
@@ -308,11 +317,19 @@ class DocumentViewSet(viewsets.ModelViewSet):
         file_size = data['file_size']
         mime_type = data['mime_type']
 
+        # 계층적 S3 경로를 위한 정보 추출
+        trade = document.trade
+        emp_no = trade.user.emp_no
+        trade_id = trade.trade_id
+        doc_type = document.doc_type
+
         try:
             presigned_data = s3_manager.generate_presigned_upload_url(
                 file_name=filename,
                 file_type=mime_type,
-                expiration=3600
+                emp_no=emp_no,
+                trade_id=trade_id,
+                doc_type=doc_type
             )
 
             # Document 업데이트

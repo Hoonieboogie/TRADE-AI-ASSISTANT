@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.53.3",
     "@tailwindcss/typography": "^0.5.19",
     "@tiptap/extension-font-family": "^3.12.1",
     "@tiptap/extension-highlight": "^3.11.0",

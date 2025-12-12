@@ -4,8 +4,6 @@ AWS S3 유틸리티 함수
 문서 업로드를 위한 presigned URL 생성 및 S3 관련 작업을 처리합니다.
 """
 
-import os
-import uuid
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -35,7 +33,10 @@ class S3Manager:
     def generate_presigned_upload_url(
         self,
         file_name: str,
-        file_type: str = 'application/pdf',
+        file_type: str,
+        emp_no: str,
+        trade_id: int,
+        doc_type: str,
         expiration: int = 3600
     ) -> dict:
         """
@@ -43,7 +44,10 @@ class S3Manager:
 
         Args:
             file_name: 원본 파일명
-            file_type: MIME 타입 (기본값: application/pdf)
+            file_type: MIME 타입
+            emp_no: 사원번호 (사용자별 폴더 구분용)
+            trade_id: 거래 ID (거래별 폴더 구분용)
+            doc_type: 문서 유형 (offer, contract)
             expiration: URL 만료 시간(초) (기본값: 3600 = 1시간)
 
         Returns:
@@ -54,10 +58,8 @@ class S3Manager:
             }
         """
         try:
-            # 고유한 파일명 생성 (UUID + 원본 파일명)
-            file_extension = os.path.splitext(file_name)[1]
-            unique_filename = f"{uuid.uuid4()}{file_extension}"
-            s3_key = f"documents/{unique_filename}"
+            # 계층적 S3 키 생성: documents/{emp_no}/{trade_id}/{doc_type}/{filename}
+            s3_key = f"documents/{emp_no}/{trade_id}/{doc_type}/{file_name}"
 
             # Presigned URL 생성 (PUT 요청용)
             upload_url = self.s3_client.generate_presigned_url(
@@ -165,6 +167,49 @@ class S3Manager:
 
         except ClientError:
             return False
+
+    def delete_folder(self, prefix: str) -> dict:
+        """
+        S3에서 특정 prefix(폴더) 하위의 모든 파일 삭제
+
+        Args:
+            prefix: 삭제할 폴더 경로 (예: 'documents/251201001/513/')
+
+        Returns:
+            dict: {'deleted': int, 'errors': int}
+        """
+        deleted_count = 0
+        error_count = 0
+
+        try:
+            # prefix 하위의 모든 객체 나열
+            paginator = self.s3_client.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=self.bucket_name, Prefix=prefix)
+
+            for page in pages:
+                if 'Contents' not in page:
+                    continue
+
+                # 삭제할 객체 목록 생성
+                objects_to_delete = [{'Key': obj['Key']} for obj in page['Contents']]
+
+                if objects_to_delete:
+                    # 일괄 삭제 (최대 1000개씩)
+                    response = self.s3_client.delete_objects(
+                        Bucket=self.bucket_name,
+                        Delete={'Objects': objects_to_delete}
+                    )
+
+                    deleted_count += len(response.get('Deleted', []))
+                    error_count += len(response.get('Errors', []))
+
+            logger.info(f"Deleted S3 folder '{prefix}': {deleted_count} files deleted, {error_count} errors")
+
+        except ClientError as e:
+            logger.error(f"Failed to delete S3 folder '{prefix}': {e}")
+            error_count += 1
+
+        return {'deleted': deleted_count, 'errors': error_count}
 
 
 # 싱글톤 인스턴스

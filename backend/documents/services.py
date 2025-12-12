@@ -311,7 +311,68 @@ def process_uploaded_document(document_id: int):
         if processing_file_path and os.path.exists(processing_file_path):
             os.unlink(processing_file_path)
             logger.debug(f"Deleted temporary file: {processing_file_path}")
-        
+
         if converted_pdf_path and os.path.exists(converted_pdf_path):
             os.unlink(converted_pdf_path)
             logger.debug(f"Deleted converted PDF file: {converted_pdf_path}")
+
+
+def delete_trade_with_resources(trade_flow) -> dict:
+    """
+    Trade 삭제 - RDS 즉시 삭제 후 외부 리소스는 백그라운드 정리
+    """
+    import threading
+    import concurrent.futures
+    from agent_core.s3_utils import s3_manager
+    from chat.memory_service import get_memory_service
+
+    trade_id = trade_flow.trade_id
+    emp_no = trade_flow.user.emp_no
+
+    # 삭제 전 정보 수집
+    doc_ids = []
+    qdrant_ids = []
+    for doc in trade_flow.documents.all():
+        doc_ids.append(doc.doc_id)
+        if doc.qdrant_point_ids:
+            qdrant_ids.extend(doc.qdrant_point_ids)
+
+    # 1. RDS 즉시 삭제 (UI 즉시 반영)
+    trade_flow.delete()
+    logger.info(f"Trade {trade_id} deleted from RDS")
+
+    # 2. 외부 리소스 백그라운드 정리
+    def cleanup():
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {}
+
+            # Qdrant 문서 벡터 삭제
+            if qdrant_ids:
+                futures['qdrant'] = executor.submit(
+                    lambda: qdrant_client.delete(COLLECTION_USER_DOCS, points_selector=qdrant_ids)
+                )
+
+            # Mem0 대화 메모리 삭제
+            if doc_ids:
+                mem_service = get_memory_service()
+                if mem_service:
+                    futures['mem0'] = executor.submit(
+                        lambda: mem_service.delete_trade_memory(trade_id, doc_ids)
+                    )
+
+            # S3 폴더 삭제
+            futures['s3'] = executor.submit(
+                lambda: s3_manager.delete_folder(f"documents/{emp_no}/{trade_id}/")
+            )
+
+            for name, future in futures.items():
+                try:
+                    future.result(timeout=30)
+                    logger.info(f"[Cleanup] {name} done for trade {trade_id}")
+                except Exception as e:
+                    logger.error(f"[Cleanup] {name} failed: {e}")
+
+    if doc_ids or qdrant_ids:
+        threading.Thread(target=cleanup, daemon=True).start()
+
+    return {'deleted': True}

@@ -198,9 +198,29 @@ class TradeMemoryService:
 
     def delete_trade_memory(self, trade_id: int, doc_ids: List[int]) -> bool:
         """Trade 삭제 시 관련 문서 메모리 일괄 삭제"""
-        success_count = sum(1 for doc_id in doc_ids if self.delete_doc_memory(doc_id))
-        logger.info(f"Deleted trade memory: trade_id={trade_id}, {success_count}/{len(doc_ids)} docs")
-        return success_count == len(doc_ids)
+        if not doc_ids:
+            return True
+
+        try:
+            from qdrant_client.models import Filter, FieldCondition, MatchAny
+
+            # 모든 doc_id에 대한 user_id 목록 생성 (short + long)
+            user_ids = [f"doc_{doc_id}_{t}" for doc_id in doc_ids for t in ("short", "long")]
+
+            # 기존 memory 인스턴스의 vector_store 클라이언트 사용
+            self.memory.vector_store.client.delete(
+                collection_name="trade_memory",
+                points_selector=Filter(
+                    must=[FieldCondition(key="user_id", match=MatchAny(any=user_ids))]
+                )
+            )
+
+            logger.info(f"Deleted trade memory: trade_id={trade_id}, docs={len(doc_ids)}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to delete trade memory: {e}")
+            return False
 
     # ==================== 일반 채팅 메모리 ====================
 
