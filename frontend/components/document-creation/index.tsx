@@ -1485,6 +1485,8 @@ export default function DocumentCreationPage({
             userEmployeeId={userEmployeeId}
             getDocId={getDocId}
             activeShippingDoc={activeShippingDoc}
+            documentData={documentData}
+            stepModes={stepModes}
           />
         </div>
       </div>
