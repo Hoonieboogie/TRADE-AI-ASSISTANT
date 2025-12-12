@@ -163,7 +163,7 @@ function App() {
     }
   };
 
-  const handleOpenDocument = (doc: SavedDocument) => {
+  const handleOpenDocument = (doc: SavedDocument, initialStep?: number) => {
     setCurrentDocId(doc.id);
 
     const content: DocumentData = { ...doc.content };
@@ -183,8 +183,16 @@ function App() {
 
     setCurrentDocIds(docIds);
     setDocumentData({ ...content, uploadedFileUrls });
-    setCurrentStep(doc.lastStep || 1);
-    setCurrentActiveShippingDoc(doc.lastActiveShippingDoc || null);
+
+    // Use initialStep if provided, otherwise fall back to doc.lastStep or 1
+    const targetStep = initialStep || doc.lastStep || 1;
+    setCurrentStep(targetStep);
+
+    // If navigating to CI (4) or PL (5), set the active shipping doc accordingly
+    if (targetStep === 4) setCurrentActiveShippingDoc('CI');
+    else if (targetStep === 5) setCurrentActiveShippingDoc('PL');
+    else setCurrentActiveShippingDoc(doc.lastActiveShippingDoc || null);
+
     setDocSessionId(Date.now().toString());
     setIsNewTrade(false);
     setTimeout(() => setCurrentPage('documents'), 0);

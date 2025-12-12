@@ -9,7 +9,7 @@ interface MainPageProps {
   userEmployeeId: string;
   onLogout: () => void;
   onLogoClick: (logoRect: DOMRect) => void;
-  onOpenDocument: (doc: SavedDocument) => void;
+  onOpenDocument: (doc: SavedDocument, initialStep?: number) => void;
   onDeleteDocument: (docId: string) => void;
   isLoading?: boolean;
 }
@@ -357,10 +357,19 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                         return (
                           <span
                             key={type}
+                            onClick={(e) => {
+                              if (isDocCompleted) {
+                                e.stopPropagation();
+                                const stepMapping: Record<string, number> = {
+                                  'offer': 1, 'pi': 2, 'contract': 3, 'ci': 4, 'pl': 5
+                                };
+                                onOpenDocument(doc, stepMapping[type]);
+                              }
+                            }}
                             className={`px-2 py-1 rounded-full text-[10.5px] font-medium transition-colors flex items-center gap-1 ${isActive
                               ? 'bg-blue-600 text-white shadow-sm'
                               : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
-                              }`}
+                              } ${isDocCompleted ? 'cursor-pointer hover:bg-blue-200' : 'cursor-default'}`}
                           >
                             {isDocCompleted && <Check className="w-3 h-3 text-green-600" strokeWidth={3} />}
                             {docNames[type]}
@@ -372,7 +381,10 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
 
                   {/* Progress Bar */}
                   <div className="mt-auto pt-2">
-                    <div className="flex justify-center mb-1.5">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-xs font-medium text-gray-400">
+                        Created: {new Date(doc.date).toLocaleDateString('ko-KR')}
+                      </span>
                       <span className="text-sm font-bold text-blue-600">{doc.progress}%</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
