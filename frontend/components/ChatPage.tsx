@@ -1,8 +1,27 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Search, TrendingUp, LogOut, User, Globe, Database, Wrench, ShieldAlert, Scale } from 'lucide-react';
+import { Send, Sparkles, Search, TrendingUp, LogOut, User, Globe, Database, Wrench, ShieldAlert, Scale, Menu } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { PageType } from '../App';
 import PasswordChangeModal from './document-creation/modals/PasswordChangeModal';
+import ChatSidebar from './chat-sidebar/ChatSidebar';
+import { GenChat, GenMessage, useChatList } from './chat-sidebar/useChatList';
+
+// 미디어 쿼리 훅
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
+    const listener = () => setMatches(media.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [matches, query]);
+
+  return matches;
+}
 
 interface ChatPageProps {
   onNavigate: (page: PageType) => void;
@@ -80,6 +99,13 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const [currentToolStatus, setCurrentToolStatus] = useState<string | null>(null);  // 현재 진행 중인 tool 상태
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // 사이드바 상태
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);  // 데스크톱 기본 열림
+
+  // 채팅 목록 훅
+  const { loadMessages } = useChatList(userEmployeeId);
+
   // API URL 정의 (useEffect보다 먼저 정의해야 함)
   const DJANGO_API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
 
@@ -120,6 +146,28 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setGenChatId(null);
     setMessages([]);
     onLogoClick(logoRect);
+  };
+
+  // 기존 채팅 선택
+  const handleSelectChat = async (chat: GenChat) => {
+    setGenChatId(chat.gen_chat_id);
+
+    // 메시지 로드
+    const loadedMessages = await loadMessages(chat.gen_chat_id);
+    const formattedMessages: Message[] = loadedMessages.map((msg: GenMessage) => ({
+      id: msg.gen_message_id.toString(),
+      type: msg.sender_type === 'U' ? 'user' : 'ai' as const,
+      content: msg.content,
+      timestamp: new Date(msg.created_at)
+    }));
+
+    setMessages(formattedMessages);
+  };
+
+  // 새 채팅 시작
+  const handleNewChat = () => {
+    setGenChatId(null);
+    setMessages([]);
   };
 
   const handleSend = async (customInput?: string) => {
@@ -264,8 +312,16 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Fixed Header */}
       <header className="bg-white/80 backdrop-blur-md flex-shrink-0 sticky top-0 z-20 shadow-sm">
-        <div className="px-8 py-4 flex items-center justify-between">
+        <div className="px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {/* Sidebar Toggle Button */}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+              title="채팅 목록"
+            >
+              <Menu className="w-5 h-5 text-gray-600" />
+            </button>
             <button
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -276,9 +332,9 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
             >
               <Sparkles className="w-5 h-5 text-white" />
             </button>
-            <div>
+            <div className="hidden sm:block">
               <h1 className="text-gray-900 font-bold">일반 채팅</h1>
-              <p className="text-gray-500 text-sm">메인 페이지로 돌아가려면 다시 로고를 클릭하세요</p>
+              <p className="text-gray-500 text-sm">메인 페이지로 돌아가려면 로고를 클릭하세요</p>
             </div>
           </div>
 
@@ -300,8 +356,23 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-0">
+      {/* Main Content Area with Sidebar */}
+      <div className="flex-1 flex min-h-0">
+        {/* Sidebar */}
+        <ChatSidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          currentChatId={genChatId}
+          onSelectChat={handleSelectChat}
+          onNewChat={handleNewChat}
+          userEmployeeId={userEmployeeId}
+          isDesktop={isDesktop}
+        />
+
+        {/* Chat Content Area */}
+        <div className={`flex-1 flex flex-col min-h-0 transition-all duration-300 ${
+          isSidebarOpen && isDesktop ? 'lg:ml-0' : ''
+        }`}>
         {hasMessages ? (
           <div className="flex-1 overflow-y-auto px-8 py-8">
             <div className="max-w-3xl mx-auto space-y-6">
@@ -451,6 +522,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* My Page Modal */}
