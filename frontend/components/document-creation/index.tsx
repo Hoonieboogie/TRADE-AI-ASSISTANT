@@ -1185,6 +1185,7 @@ export default function DocumentCreationPage({
             }
           }}
           onRetry={() => retryUpload(currentStep)}
+          onReset={() => removeUploadedFile(currentStep)}
         />
       );
     }

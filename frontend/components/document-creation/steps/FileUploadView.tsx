@@ -17,6 +17,7 @@ interface FileUploadViewProps {
   error: string | null;
   onUpload: (file: File) => void;
   onRetry: () => void;
+  onReset: () => void;
 }
 
 export default function FileUploadView({
@@ -28,7 +29,8 @@ export default function FileUploadView({
   convertedPdfUrl,
   error,
   onUpload,
-  onRetry
+  onRetry,
+  onReset
 }: FileUploadViewProps) {
   // ready 상태: PdfViewer 렌더링
   if (status === 'ready' && documentUrl) {
@@ -124,13 +126,21 @@ export default function FileUploadView({
             </div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">업로드 실패</h3>
             <p className="text-red-500 mb-6 max-w-md">{error || '알 수 없는 오류가 발생했습니다'}</p>
-            <button
-              onClick={onRetry}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
-            >
-              <Upload className="w-5 h-5" />
-              다시 시도
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={onReset}
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors font-medium"
+              >
+                다른 파일 업로드
+              </button>
+              <button
+                onClick={onRetry}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
+              >
+                <Upload className="w-5 h-5" />
+                다시 시도
+              </button>
+            </div>
           </motion.div>
         </div>
       </div>
