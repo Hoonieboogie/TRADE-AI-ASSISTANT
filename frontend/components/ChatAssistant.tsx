@@ -83,6 +83,7 @@ export default function ChatAssistant({ currentStep, onClose, editorRef, onApply
   });
   const [history, setHistory] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(true);
+  const [currentToolStatus, setCurrentToolStatus] = useState<string | null>(null);  // 현재 진행 중인 tool 상태
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -595,6 +596,7 @@ ${documentContent}
                   ));
                 } else if (data.type === 'tool') {
                   accumulatedTools = [...accumulatedTools, data.tool];
+                  setCurrentToolStatus(data.tool.name);  // tool 상태 업데이트
                   setMessages(prev => prev.map(msg =>
                     msg.id === aiMessageId
                       ? { ...msg, toolsUsed: accumulatedTools }
@@ -615,6 +617,7 @@ ${documentContent}
                       : msg
                   ));
                 } else if (data.type === 'done') {
+                  setCurrentToolStatus(null);  // tool 상태 초기화
                   // 스트리밍 완료 시 최종 도구 정보 업데이트
                   if (data.tools_used && data.tools_used.length > 0) {
                     setMessages(prev => prev.map(msg =>
@@ -676,6 +679,7 @@ ${documentContent}
     }
 
     setIsLoading(false);
+    setCurrentToolStatus(null);  // tool 상태 초기화
   };
 
   return (
@@ -884,7 +888,9 @@ ${documentContent}
                   <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                   <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                 </div>
-                <span className="text-xs text-gray-500">답변 생성중...</span>
+                <span className="text-xs text-gray-500">
+                  {currentToolStatus ? `${currentToolStatus}...` : '답변 생성중...'}
+                </span>
               </div>
             </div>
           </div>
