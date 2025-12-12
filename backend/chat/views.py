@@ -4,7 +4,8 @@ import re
 import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from django.http import StreamingHttpResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -15,6 +16,7 @@ from agents.items import ToolCallItem
 from agent_core import get_trade_agent, get_document_writing_agent
 from .config import PROMPT_VERSION, PROMPT_LABEL
 from .models import User, GenChat, GenMessage, Department
+from .serializers import GenChatSerializer, GenMessageSerializer
 from .memory_service import get_memory_service
 
 logger = logging.getLogger(__name__)
@@ -579,3 +581,92 @@ class GenChatDeleteView(APIView):
                 {"error": "채팅을 찾을 수 없습니다."},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class GenChatViewSet(viewsets.ModelViewSet):
+    """
+    일반 채팅 목록 관리 ViewSet
+
+    GET    /api/gen-chats/?user_id=xxx     → 사용자 채팅 목록 조회
+    GET    /api/gen-chats/{id}/            → 단일 채팅 조회
+    GET    /api/gen-chats/{id}/messages/   → 채팅 메시지 목록 조회
+    PATCH  /api/gen-chats/{id}/update_title/ → 채팅 제목 수정
+    DELETE /api/gen-chats/{id}/            → 채팅 삭제 (Mem0 포함)
+    """
+    queryset = GenChat.objects.all()
+    serializer_class = GenChatSerializer
+
+    def get_queryset(self):
+        """사용자별 채팅 목록 조회 (최신순)"""
+        queryset = super().get_queryset()
+        user_id = self.request.query_params.get('user_id')
+
+        if user_id:
+            user = get_or_create_user(user_id)
+            if user:
+                queryset = queryset.filter(user=user)
+
+        return queryset.order_by('-updated_at')
+
+    @action(detail=True, methods=['get'])
+    def messages(self, request, pk=None):
+        """
+        채팅의 모든 메시지 조회
+
+        GET /api/gen-chats/{gen_chat_id}/messages/
+        """
+        gen_chat = self.get_object()
+        messages = GenMessage.objects.filter(gen_chat=gen_chat).order_by('created_at')
+        serializer = GenMessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['patch'])
+    def update_title(self, request, pk=None):
+        """
+        채팅 제목 업데이트
+
+        PATCH /api/gen-chats/{gen_chat_id}/update_title/
+        { "title": "새 제목" }
+        """
+        gen_chat = self.get_object()
+        title = request.data.get('title')
+
+        if not title:
+            return Response(
+                {'error': 'title이 필요합니다.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        gen_chat.title = title
+        gen_chat.save(update_fields=['title', 'updated_at'])
+        logger.info(f"✅ GenChat 제목 수정: gen_chat_id={gen_chat.gen_chat_id}, title={title}")
+
+        serializer = GenChatSerializer(gen_chat)
+        return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        채팅 삭제 (Mem0 메모리 포함)
+
+        DELETE /api/gen-chats/{gen_chat_id}/
+        """
+        gen_chat = self.get_object()
+        gen_chat_id = gen_chat.gen_chat_id
+
+        # Mem0 메모리 삭제
+        try:
+            memory_service = get_memory_service()
+            if memory_service:
+                memory_service.delete_gen_chat_memory(gen_chat_id)
+                logger.info(f"✅ Mem0 메모리 삭제 완료: gen_chat_id={gen_chat_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ Mem0 메모리 삭제 실패 (계속 진행): {e}")
+
+        # DB 삭제
+        gen_chat.delete()
+        logger.info(f"✅ GenChat 삭제 완료: gen_chat_id={gen_chat_id}")
+
+        return Response(
+            {'message': '채팅이 삭제되었습니다.', 'gen_chat_id': gen_chat_id},
+            status=status.HTTP_200_OK
+        )

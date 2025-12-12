@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ChatView, ChatStreamView, GenChatDeleteView
+from .views import ChatView, ChatStreamView, GenChatDeleteView, GenChatViewSet
 from .trade_views import (
     TradeInitView,
     TradeFlowViewSet,
@@ -15,6 +15,7 @@ from .trade_views import (
 router = DefaultRouter()
 router.register(r'trade', TradeFlowViewSet, basename='trade')
 router.register(r'documents', DocumentViewSet, basename='documents')
+router.register(r'gen-chats', GenChatViewSet, basename='gen-chats')
 
 urlpatterns = [
     # 기존 일반 채팅 API
