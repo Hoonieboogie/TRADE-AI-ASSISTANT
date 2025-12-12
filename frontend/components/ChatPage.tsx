@@ -164,15 +164,22 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
   // 기존 채팅 선택
   const handleSelectChat = async (chat: GenChat) => {
+    const targetChatId = chat.gen_chat_id;
+
     // 1. 즉시 상태 초기화 (비동기 갭 동안 이전 채팅 UI 방지)
-    setGenChatId(chat.gen_chat_id);
+    setGenChatId(targetChatId);
     setMessages([]);  // 메시지 즉시 초기화
     setCurrentToolStatus(null);  // tool 상태 초기화 (이전 채팅의 상태 표시 방지)
 
     // 2. 메시지 로드
-    const loadedMessages = await loadMessages(chat.gen_chat_id);
+    const loadedMessages = await loadMessages(targetChatId);
 
-    // 3. 로드 완료 후 채팅이 바뀌지 않았는지 확인
+    // 3. 로드 완료 후 채팅이 바뀌지 않았는지 확인 (레이스 컨디션 방지)
+    if (currentChatIdRef.current !== targetChatId) {
+      // 메시지 로딩 중 다른 채팅으로 전환됨 - 결과 무시
+      return;
+    }
+
     const formattedMessages: Message[] = loadedMessages.map((msg: GenMessage) => ({
       id: msg.gen_message_id.toString(),
       type: msg.sender_type === 'U' ? 'user' : 'ai' as const,
