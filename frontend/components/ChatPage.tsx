@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Search, FileText, TrendingUp, LogOut, User, Globe, Database, Wrench, ShieldAlert, Scale } from 'lucide-react';
+import { Send, Sparkles, Search, TrendingUp, LogOut, User, Globe, Database, Wrench, ShieldAlert, Scale } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { PageType } from '../App';
 import PasswordChangeModal from './document-creation/modals/PasswordChangeModal';
