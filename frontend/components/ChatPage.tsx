@@ -40,13 +40,15 @@ const getToolIcon = (iconName: string) => {
 
 // 툴 상태 표시 정보 매핑
 const TOOL_STATUS_MAP: Record<string, { label: string; color: string; dotColor: string }> = {
+  '질문 분석': { label: '질문 분석중', color: 'text-gray-500', dotColor: 'bg-gray-400' },
+  '답변 생성': { label: '답변 생성중', color: 'text-blue-600', dotColor: 'bg-blue-500' },
   '무역 지식 검색': { label: '무역 지식 검색중', color: 'text-blue-600', dotColor: 'bg-blue-500' },
   '업로드 문서 검색': { label: '업로드 문서 검색중', color: 'text-emerald-600', dotColor: 'bg-emerald-500' },
   '웹 검색': { label: '웹 검색중', color: 'text-violet-600', dotColor: 'bg-violet-500' },
 };
 
 const getToolStatusInfo = (toolName: string | null) => {
-  if (!toolName) return { label: '답변 생성중', color: 'text-gray-500', dotColor: 'bg-blue-500' };
+  if (!toolName) return { label: '준비중', color: 'text-gray-500', dotColor: 'bg-gray-400' };
   return TOOL_STATUS_MAP[toolName] || { label: `${toolName}중`, color: 'text-gray-500', dotColor: 'bg-blue-500' };
 };
 
@@ -168,6 +170,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
         timestamp: new Date(),
         toolsUsed: []
       }]);
+      setCurrentToolStatus('질문 분석');  // 스트리밍 시작 시 질문 분석 상태
 
       let accumulatedContent = '';
       let accumulatedTools: ToolUsed[] = [];
@@ -191,6 +194,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 }
               } else if (data.type === 'text') {
                 accumulatedContent += data.content;
+                setCurrentToolStatus('답변 생성');  // 텍스트 스트리밍 시작 시 답변 생성 상태
                 setMessages(prev => prev.map(msg =>
                   msg.id === aiMessageId
                     ? { ...msg, content: accumulatedContent }
