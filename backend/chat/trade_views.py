@@ -334,7 +334,7 @@ class TradeFlowViewSet(viewsets.ModelViewSet):
             # 3. Trade 조회 (문서 포함)
             trades = TradeFlow.objects.filter(user_id=user_id)\
                 .prefetch_related(doc_prefetch)\
-                .order_by('-created_at')
+                .order_by('-updated_at')
 
             serializer = TradeDashboardSerializer(trades, many=True)
             return Response(serializer.data)
