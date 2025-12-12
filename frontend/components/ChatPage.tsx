@@ -38,6 +38,18 @@ const getToolIcon = (iconName: string) => {
   }
 };
 
+// 툴 상태 표시 정보 매핑
+const TOOL_STATUS_MAP: Record<string, { label: string; color: string; dotColor: string }> = {
+  '무역 지식 검색': { label: '무역 지식 검색중', color: 'text-blue-600', dotColor: 'bg-blue-500' },
+  '업로드 문서 검색': { label: '업로드 문서 검색중', color: 'text-emerald-600', dotColor: 'bg-emerald-500' },
+  '웹 검색': { label: '웹 검색중', color: 'text-violet-600', dotColor: 'bg-violet-500' },
+};
+
+const getToolStatusInfo = (toolName: string | null) => {
+  if (!toolName) return { label: '답변 생성중', color: 'text-gray-500', dotColor: 'bg-blue-500' };
+  return TOOL_STATUS_MAP[toolName] || { label: `${toolName}중`, color: 'text-gray-500', dotColor: 'bg-blue-500' };
+};
+
 const suggestedQuestions = [
   {
     icon: ShieldAlert,
@@ -348,16 +360,21 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
               ) && (
                 <div className="flex justify-start">
                   <div className="bg-white border border-gray-200 rounded-2xl px-6 py-4 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                      </div>
-                      <span className="text-sm text-gray-500">
-                        {currentToolStatus ? `${currentToolStatus}...` : '답변 생성중...'}
-                      </span>
-                    </div>
+                    {(() => {
+                      const statusInfo = getToolStatusInfo(currentToolStatus);
+                      return (
+                        <div className="flex items-center gap-3">
+                          <div className="flex gap-1">
+                            <div className={`w-2 h-2 ${statusInfo.dotColor} rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
+                            <div className={`w-2 h-2 ${statusInfo.dotColor} rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
+                            <div className={`w-2 h-2 ${statusInfo.dotColor} rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
+                          </div>
+                          <span className={`text-sm font-medium ${statusInfo.color}`}>
+                            {statusInfo.label}...
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
