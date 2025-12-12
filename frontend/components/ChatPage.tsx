@@ -105,7 +105,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
   // 채팅 목록 훅 - ChatPage가 소유하고 ChatSidebar에 전달
   const chatListHook = useChatList(userEmployeeId);
-  const { loadMessages, addChatToList } = chatListHook;
+  const { loadMessages, addChatToList, bringChatToTop } = chatListHook;
 
   // 화면 크기에 따라 사이드바 초기 상태 설정
   useEffect(() => {
@@ -297,6 +297,10 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                       ? { ...msg, toolsUsed: data.tools_used }
                       : msg
                   ));
+                }
+                // 기존 채팅이면 맨 위로 이동
+                if (genChatId) {
+                  bringChatToTop(genChatId);
                 }
               } else if (data.type === 'error') {
                 setMessages(prev => prev.map(msg =>

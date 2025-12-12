@@ -126,6 +126,18 @@ export function useChatList(userEmployeeId: string) {
     ));
   }, []);
 
+  // 채팅을 맨 위로 이동 (최근 활동 시)
+  const bringChatToTop = useCallback((chatId: number) => {
+    setChats(prev => {
+      const chatIndex = prev.findIndex(c => c.gen_chat_id === chatId);
+      if (chatIndex <= 0) return prev; // 이미 맨 위이거나 없으면 그대로
+
+      const chat = prev[chatIndex];
+      const updatedChat = { ...chat, updated_at: new Date().toISOString() };
+      return [updatedChat, ...prev.slice(0, chatIndex), ...prev.slice(chatIndex + 1)];
+    });
+  }, []);
+
   useEffect(() => {
     fetchChats();
   }, [fetchChats]);
@@ -139,6 +151,7 @@ export function useChatList(userEmployeeId: string) {
     loadMessages,
     updateTitle,
     addChatToList,
-    updateChat
+    updateChat,
+    bringChatToTop
   };
 }

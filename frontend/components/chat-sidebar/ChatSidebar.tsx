@@ -15,6 +15,7 @@ interface ChatListHook {
   addChatToList: (chat: GenChat) => void;
   updateChat: (chatId: number, updates: Partial<GenChat>) => void;
   loadMessages: (chatId: number) => Promise<unknown[]>;
+  bringChatToTop: (chatId: number) => void;
 }
 
 interface ChatSidebarProps {
