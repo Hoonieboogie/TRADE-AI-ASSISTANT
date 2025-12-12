@@ -136,17 +136,25 @@ export default function ChatSidebar({
   const { chats, isLoading, error, deleteChat, updateTitle, refetch } = chatListHook;
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; title: string } | null>(null);
 
-  // 삭제 확인
-  const handleDeleteConfirm = async () => {
+  // 삭제 확인 - 낙관적 삭제 (모달 즉시 닫기, API는 백그라운드)
+  const handleDeleteConfirm = () => {
     if (deleteConfirm) {
       const deletedId = deleteConfirm.id;
-      const success = await deleteChat(deletedId);
+
+      // 1. 모달 즉시 닫기
       setDeleteConfirm(null);
 
-      // 삭제 성공 시 부모에게 알림
-      if (success && onChatDeleted) {
+      // 2. 부모에게 즉시 알림 (현재 채팅이면 초기화)
+      if (onChatDeleted) {
         onChatDeleted(deletedId);
       }
+
+      // 3. API 호출 (백그라운드 - await 없음)
+      deleteChat(deletedId).catch(err => {
+        console.error('채팅 삭제 실패:', err);
+        // 실패 시 목록 새로고침으로 복구
+        refetch();
+      });
     }
   };
 
