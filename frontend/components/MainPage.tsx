@@ -1,4 +1,4 @@
-import { FileText, Plus, ChevronDown, LogOut, CheckCircle, Clock, Search, Filter, User, Sparkles, Trash2 } from 'lucide-react';
+import { FileText, Plus, ChevronDown, LogOut, CheckCircle, Clock, Search, Filter, User, Sparkles, Trash2, Check } from 'lucide-react';
 import { PageType, SavedDocument } from '../App';
 import { useState, useEffect, useRef } from 'react';
 import PasswordChangeModal from './document-creation/modals/PasswordChangeModal';
@@ -195,7 +195,7 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
 
         {/* Task Cards */}
         {isLoading ? (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="bg-white rounded-lg border border-gray-200 p-6 h-48 animate-pulse">
                 <div className="flex items-start gap-4 h-full">
@@ -238,67 +238,148 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             {filteredTasks.map(doc => {
               const isCompleted = doc.status === 'completed' || doc.progress === 100;
-              const iconBg = isCompleted ? 'bg-green-50' : 'bg-blue-50';
-              const iconColor = isCompleted ? 'text-green-600' : 'text-blue-600';
 
               return (
                 <div
                   key={doc.id}
                   onClick={() => onOpenDocument(doc)}
-                  className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow h-full cursor-pointer group"
+                  className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg transition-all duration-200 h-full cursor-pointer group flex flex-col relative overflow-hidden"
                 >
-                  <div className="flex items-start gap-4 h-full">
-                    <div
-                      className={`w-12 h-12 ${iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}
-                    >
-                      <FileText className={`w-6 h-6 ${iconColor}`} />
+                  {/* Header Section */}
+                  <div className="flex items-start gap-4 mb-6">
+                    {/* Icon */}
+                    <div className="flex-shrink-0 mt-1">
+                      <svg className="w-10 h-10 text-blue-600 drop-shadow-sm" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" />
+                        <path d="M14 2V8H20" fillOpacity="0.5" fill="white" />
+                      </svg>
                     </div>
-                    <div className="flex-1 flex flex-col">
-                      <div className="flex items-center gap-2 mb-3">
-                        <h3 className="text-gray-900 font-medium line-clamp-1" title={doc.name}>{doc.name}</h3>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-gray-900 font-bold text-xl line-clamp-1 tracking-tight" title={doc.name}>{doc.name}</h3>
                         {isCompleted ? (
-                          <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs flex-shrink-0">
-                            <CheckCircle className="w-3 h-3" />
-                            완료
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                            Completed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 px-2 py-1 rounded-md text-xs flex-shrink-0">
-                            <Clock className="w-3 h-3" />
-                            진행중
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-600">
+                            In Progress
                           </span>
                         )}
                       </div>
-                      <p className="text-gray-500 text-sm mb-3">{doc.date}</p>
+                      {/* Relative Time */}
+                      <p className="text-gray-400 text-sm font-medium">
+                        마지막 수정: {(() => {
+                          const updatedAt = doc.tradeData?.updated_at ? new Date(doc.tradeData.updated_at) : new Date(doc.date);
+                          const now = new Date();
+                          const diffInSeconds = Math.floor((now.getTime() - updatedAt.getTime()) / 1000);
 
-                      {/* Progress Bar */}
-                      <div className="mb-4">
-                        <div className="flex justify-between text-xs text-gray-500 mb-1">
-                          <span>진행률</span>
-                          <span>{doc.progress}% ({doc.completedSteps}/{doc.totalSteps})</span>
-                        </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
-                            style={{ width: `${doc.progress}%` }}
-                          ></div>
-                        </div>
-                      </div>
+                          if (diffInSeconds < 60) return '방금 전';
+                          if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}분 전`;
+                          if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}시간 전`;
+                          if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}일 전`;
+                          return updatedAt.toLocaleDateString('ko-KR');
+                        })()}
+                      </p>
+                    </div>
+                  </div>
 
-                      <div className="flex justify-end mt-auto">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteTarget(doc);
-                          }}
-                          className="text-gray-400 hover:text-red-600 text-sm transition-colors font-medium p-2 rounded-full hover:bg-red-50"
-                          title="삭제"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                  {/* Last Action Section */}
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 text-gray-800 font-medium text-base">
+                        <span>최근 작업:</span>
+                        <span className="text-gray-900 font-bold">
+                          {(() => {
+                            if (!doc.tradeData?.documents || doc.tradeData.documents.length === 0) return '없음';
+                            const sortedDocs = [...doc.tradeData.documents].sort((a: any, b: any) => {
+                              const dateA = new Date(a.updated_at || a.created_at).getTime();
+                              const dateB = new Date(b.updated_at || b.created_at).getTime();
+                              return dateB - dateA;
+                            });
+                            const lastDoc = sortedDocs[0];
+                            const docNames: Record<string, string> = {
+                              'offer': '제안서 (Offer Sheet)',
+                              'pi': '견적송장 (Proforma Invoice)',
+                              'contract': '매매계약서 (Sales Contract)',
+                              'ci': '상업송장 (Commercial Invoice)',
+                              'pl': '패킹리스트 (Packing List)'
+                            };
+                            return docNames[lastDoc.doc_type] || lastDoc.doc_type;
+                          })()}
+                        </span>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(doc);
+                        }}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Document Badges */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {['offer', 'pi', 'contract', 'ci', 'pl'].map((type) => {
+                        const docNames: Record<string, string> = {
+                          'offer': 'Offer Sheet',
+                          'pi': 'Proforma Invoice',
+                          'contract': 'Sales Contract',
+                          'ci': 'Commercial Invoice',
+                          'pl': 'Packing List',
+                        };
+
+                        // Check existence
+                        const exists = doc.tradeData?.documents?.some((d: any) => d.doc_type === type);
+                        const isDocCompleted = (doc.content && doc.content[type === 'pl' ? 5 : type === 'ci' ? 4 : type === 'contract' ? 3 : type === 'pi' ? 2 : 1]);
+
+                        if (!exists && !isDocCompleted) return null;
+
+                        // Determine if this is the "active" (last updated) document
+                        let isActive = false;
+                        if (doc.tradeData?.documents) {
+                          const sortedDocs = [...doc.tradeData.documents].sort((a: any, b: any) => {
+                            const dateA = new Date(a.updated_at || a.created_at).getTime();
+                            const dateB = new Date(b.updated_at || b.created_at).getTime();
+                            return dateB - dateA;
+                          });
+                          if (sortedDocs.length > 0 && sortedDocs[0].doc_type === type) {
+                            isActive = true;
+                          }
+                        }
+
+                        return (
+                          <span
+                            key={type}
+                            className={`px-2 py-1 rounded-full text-[10.5px] font-medium transition-colors flex items-center gap-1 ${isActive
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
+                              }`}
+                          >
+                            {isDocCompleted && <Check className="w-3 h-3 text-green-600" strokeWidth={3} />}
+                            {docNames[type]}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="mt-auto pt-2">
+                    <div className="flex justify-center mb-1.5">
+                      <span className="text-sm font-bold text-blue-600">{doc.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${isCompleted ? 'bg-green-500' : 'bg-blue-600'}`}
+                        style={{ width: `${doc.progress}%` }}
+                      ></div>
                     </div>
                   </div>
                 </div>
