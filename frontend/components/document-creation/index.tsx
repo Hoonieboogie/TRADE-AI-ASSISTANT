@@ -301,7 +301,7 @@ export default function DocumentCreationPage({
     }
 
     if (stepNumber <= 3) {
-      // Manual mode check
+      // 항상 documentData 사용 (Step 이동 시 handleStepChange에서 저장됨)
       const stepContent = documentData[stepNumber] || hydrateTemplate(getTemplateForStep(stepNumber));
       return checkStepCompletion(stepContent);
     } else {

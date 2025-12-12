@@ -89,6 +89,38 @@ function App() {
   };
 
   const [isNewTrade, setIsNewTrade] = useState(false);
+  const [savedDocuments, setSavedDocuments] = useState<SavedDocument[]>([]);
+  const [isLoadingTrades, setIsLoadingTrades] = useState(false);
+
+  // Generate unique title for untitled documents
+  const generateUniqueTitle = useCallback((baseTitle: string = 'Untitled Document'): string => {
+    // Get all existing titles
+    const existingTitles = savedDocuments.map(doc => doc.name);
+
+    // If base title doesn't exist, use it
+    if (!existingTitles.includes(baseTitle)) {
+      return baseTitle;
+    }
+
+    // Find the highest number suffix
+    let maxNumber = 0;
+    const regex = new RegExp(`^${baseTitle}_(\\d+)$`);
+
+    existingTitles.forEach(title => {
+      if (title === baseTitle) {
+        maxNumber = Math.max(maxNumber, 0);
+      } else {
+        const match = title.match(regex);
+        if (match) {
+          const num = parseInt(match[1]);
+          maxNumber = Math.max(maxNumber, num);
+        }
+      }
+    });
+
+    // Return next available number
+    return `${baseTitle}_${maxNumber + 1}`;
+  }, [savedDocuments]);
 
   const createNewTrade = async (): Promise<string | null> => {
     // Don't create if we already have a Trade or no user
@@ -97,6 +129,9 @@ function App() {
     }
 
     try {
+      // Generate unique title for new trade
+      const uniqueTitle = generateUniqueTitle('Untitled Document');
+
       // Trade 초기화 API 호출 - 새 Trade와 5개의 Document를 생성
       const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
       const response = await fetch(`${API_URL}/api/trade/init/`, {
@@ -104,7 +139,7 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: currentUser.emp_no,
-          title: '새 무역 거래'
+          title: uniqueTitle
         })
       });
 
@@ -237,8 +272,6 @@ function App() {
       setCurrentPage('main');
     }, 500);
   };
-  const [savedDocuments, setSavedDocuments] = useState<SavedDocument[]>([]);
-  const [isLoadingTrades, setIsLoadingTrades] = useState(false);
 
   // doc_type을 step으로 변환
   const docTypeToStep = (docType: string): number => {
@@ -423,7 +456,7 @@ function App() {
     try {
       // 새 Trade 생성 (currentDocId가 없는 경우) - /api/trade/init/ 사용
       if (!tradeId && currentUser) {
-        const title = data.title || 'Untitled Document';
+        const title = data.title || generateUniqueTitle('Untitled Document');
         const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
         const response = await fetch(`${API_URL}/api/trade/init/`, {
           method: 'POST',
@@ -453,7 +486,12 @@ function App() {
         const trade = await api.getTrade(parseInt(tradeId));
 
         // 제목이 변경되었으면 Trade 제목 업데이트 (한 번만 실행)
-        const newTitle = data.title || 'Untitled Document';
+        // If title is empty or still "Untitled Document" without number, generate unique title
+        let newTitle = data.title || '';
+        if (!newTitle || newTitle === 'Untitled Document' || newTitle === '새 무역 거래') {
+          newTitle = generateUniqueTitle('Untitled Document');
+        }
+
         if (trade.title !== newTitle) {
           await api.updateTrade(parseInt(tradeId), { title: newTitle });
           console.log(`[API] Updated trade title to: ${newTitle}`);
