@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { PageType } from '../App';
 import { User, Department, api } from '../utils/api';
 import { ArrowLeft, Plus, Search, Filter, ChevronDown } from 'lucide-react';
+import UserCreateModal from './admin/UserCreateModal';
+import UserEditModal from './admin/UserEditModal';
+import PasswordResetModal from './admin/PasswordResetModal';
+import UserDeleteModal from './admin/UserDeleteModal';
 
 interface AdminPageProps {
   onNavigate: (page: PageType) => void;
@@ -20,6 +24,12 @@ export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPa
   const [deptFilter, setDeptFilter] = useState<number | null>(null);
   const [roleFilter, setRoleFilter] = useState<'all' | 'user' | 'admin'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  // 모달 상태
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [resettingUser, setResettingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
   // 사용자 목록 로드
   const fetchUsers = async () => {
@@ -169,7 +179,7 @@ export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPa
 
           {/* Add User Button */}
           <button
-            onClick={() => {/* TODO: Open create modal */}}
+            onClick={() => setShowCreateModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
             <Plus className="w-5 h-5" />
@@ -253,19 +263,19 @@ export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPa
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => {/* TODO: Open edit modal */}}
+                          onClick={() => setEditingUser(user)}
                           className="text-blue-600 hover:text-blue-800 transition-colors"
                         >
                           수정
                         </button>
                         <button
-                          onClick={() => {/* TODO: Open password reset modal */}}
+                          onClick={() => setResettingUser(user)}
                           className="text-gray-600 hover:text-gray-800 transition-colors"
                         >
                           비밀번호 초기화
                         </button>
                         <button
-                          onClick={() => {/* TODO: Open delete modal */}}
+                          onClick={() => setDeletingUser(user)}
                           className="text-red-600 hover:text-red-800 transition-colors"
                         >
                           삭제
@@ -289,6 +299,48 @@ export default function AdminPage({ onNavigate, currentUser, onLogout }: AdminPa
           </div>
         )}
       </main>
+
+      {/* Modals */}
+      <UserCreateModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          fetchUsers();
+          setShowCreateModal(false);
+        }}
+        departments={departments}
+      />
+
+      <UserEditModal
+        user={editingUser}
+        isOpen={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        onSuccess={() => {
+          fetchUsers();
+          setEditingUser(null);
+        }}
+        departments={departments}
+      />
+
+      <PasswordResetModal
+        user={resettingUser}
+        isOpen={!!resettingUser}
+        onClose={() => setResettingUser(null)}
+        onSuccess={() => {
+          fetchUsers();
+          setResettingUser(null);
+        }}
+      />
+
+      <UserDeleteModal
+        user={deletingUser}
+        isOpen={!!deletingUser}
+        onClose={() => setDeletingUser(null)}
+        onSuccess={() => {
+          fetchUsers();
+          setDeletingUser(null);
+        }}
+      />
     </div>
   );
 }
