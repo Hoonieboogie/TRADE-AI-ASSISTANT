@@ -101,10 +101,15 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
   // 사이드바 상태
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);  // 데스크톱 기본 열림
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);  // 초기값 false, useEffect에서 설정
 
   // 채팅 목록 훅
   const { loadMessages } = useChatList(userEmployeeId);
+
+  // 화면 크기에 따라 사이드바 초기 상태 설정
+  useEffect(() => {
+    setIsSidebarOpen(isDesktop);
+  }, [isDesktop]);
 
   // API URL 정의 (useEffect보다 먼저 정의해야 함)
   const DJANGO_API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
@@ -168,6 +173,14 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const handleNewChat = () => {
     setGenChatId(null);
     setMessages([]);
+  };
+
+  // 채팅 삭제 후 콜백 (현재 보고 있는 채팅이면 초기화)
+  const handleChatDeleted = (deletedChatId: number) => {
+    if (genChatId === deletedChatId) {
+      setGenChatId(null);
+      setMessages([]);
+    }
   };
 
   const handleSend = async (customInput?: string) => {
@@ -365,6 +378,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
           currentChatId={genChatId}
           onSelectChat={handleSelectChat}
           onNewChat={handleNewChat}
+          onChatDeleted={handleChatDeleted}
           userEmployeeId={userEmployeeId}
           isDesktop={isDesktop}
         />

@@ -10,6 +10,7 @@ interface ChatSidebarProps {
   currentChatId: number | null;
   onSelectChat: (chat: GenChat) => void;
   onNewChat: () => void;
+  onChatDeleted?: (chatId: number) => void;
   userEmployeeId: string;
   isDesktop: boolean;
 }
@@ -113,6 +114,7 @@ export default function ChatSidebar({
   currentChatId,
   onSelectChat,
   onNewChat,
+  onChatDeleted,
   userEmployeeId,
   isDesktop
 }: ChatSidebarProps) {
@@ -122,8 +124,14 @@ export default function ChatSidebar({
   // 삭제 확인
   const handleDeleteConfirm = async () => {
     if (deleteConfirm) {
-      await deleteChat(deleteConfirm.id);
+      const deletedId = deleteConfirm.id;
+      const success = await deleteChat(deletedId);
       setDeleteConfirm(null);
+
+      // 삭제 성공 시 부모에게 알림
+      if (success && onChatDeleted) {
+        onChatDeleted(deletedId);
+      }
     }
   };
 
