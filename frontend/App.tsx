@@ -329,13 +329,20 @@ function App() {
               if (latestContent.stepModes && !content.stepModes) {
                 content.stepModes = latestContent.stepModes;
               }
+            }
 
-              // Add to versions list (for sidebar)
-              allVersions.push({
-                id: doc.latest_version.version_id.toString(),
-                timestamp: new Date(doc.latest_version.created_at).getTime(),
-                data: { [step]: latestContent.html || latestContent, title: latestContent.title },
-                step: step
+            // 2. Add ALL versions to versions list (for sidebar)
+            if (doc.all_versions && Array.isArray(doc.all_versions)) {
+              doc.all_versions.forEach((version: any) => {
+                if (version.content) {
+                  const versionContent = version.content;
+                  allVersions.push({
+                    id: version.version_id.toString(),
+                    timestamp: new Date(version.created_at).getTime(),
+                    data: { [step]: versionContent.html || versionContent, title: versionContent.title },
+                    step: step
+                  });
+                }
               });
             }
           });
@@ -511,7 +518,6 @@ function App() {
         // Save all documents concurrently
         await Promise.all(docKeys.map(async (key) => {
           const content = data[key];
-          // Only save if content exists
           if (content) {
             const docType = docTypeMapping[key];
             const document = trade.documents?.find(d => d.doc_type === docType);
@@ -524,13 +530,12 @@ function App() {
                 savedAt: new Date().toISOString(),
               };
 
-              // [CHANGED] Check if content actually changed
+              // Check if content actually changed
               let hasChanged = true;
               if (document.latest_version && document.latest_version.content) {
                 const latest = document.latest_version.content;
                 const latestHtml = typeof latest === 'string' ? latest : (latest.html || '');
                 const latestTitle = typeof latest === 'string' ? '' : (latest.title || '');
-                // Compare HTML and Title (ignore stepModes for now or compare deep)
                 if (latestHtml === content && latestTitle === (data.title || '')) {
                   hasChanged = false;
                 }
@@ -538,9 +543,6 @@ function App() {
 
               if (hasChanged) {
                 await api.createVersion(document.doc_id, versionContent);
-                console.log(`[API] Saved version for doc ${document.doc_id} (${docType})`);
-              } else {
-                console.log(`[API] Skipped saving unchanged doc ${document.doc_id} (${docType})`);
               }
             }
           }

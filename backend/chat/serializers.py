@@ -80,11 +80,12 @@ class DocumentSerializer(serializers.ModelSerializer):
 
 
 class DocumentDashboardSerializer(DocumentSerializer):
-    """대시보드용 문서 Serializer (최신 버전 포함)"""
+    """대시보드용 문서 Serializer (최신 버전 및 모든 버전 포함)"""
     latest_version = serializers.SerializerMethodField()
+    all_versions = serializers.SerializerMethodField()
 
     class Meta(DocumentSerializer.Meta):
-        fields = DocumentSerializer.Meta.fields + ['latest_version']
+        fields = DocumentSerializer.Meta.fields + ['latest_version', 'all_versions']
 
     def get_latest_version(self, obj):
         # prefetch_related로 가져온 versions 중 첫 번째 (최신)
@@ -92,12 +93,23 @@ class DocumentDashboardSerializer(DocumentSerializer):
         versions = getattr(obj, 'prefetched_versions', None)
         if versions and len(versions) > 0:
             return DocVersionSerializer(versions[0]).data
-        
+
         # Fallback (N+1 발생 가능하므로 prefetch 권장)
         latest = obj.versions.order_by('-created_at').first()
         if latest:
             return DocVersionSerializer(latest).data
         return None
+
+    def get_all_versions(self, obj):
+        """모든 버전을 시간순으로 반환 (최신순)"""
+        # prefetch_related로 가져온 versions 사용
+        versions = getattr(obj, 'prefetched_versions', None)
+        if versions:
+            return DocVersionSerializer(versions, many=True).data
+
+        # Fallback
+        versions = obj.versions.order_by('-created_at').all()
+        return DocVersionSerializer(versions, many=True).data
 
 
 class TradeDashboardSerializer(TradeFlowSerializer):

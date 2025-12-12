@@ -962,13 +962,11 @@ export default function DocumentCreationPage({
 
   const handleVersionRestore = (version: Version) => {
     if (onRestore) {
-      // 먼저 documentData 업데이트 (App.tsx에서 처리)
       onRestore(version);
       setShowVersionHistory(false);
 
       const step = version.step;
 
-      // step 설정
       if (step <= 3) {
         setCurrentStep(step);
         setStepModes(prev => ({ ...prev, [step]: 'manual' }));
@@ -978,7 +976,6 @@ export default function DocumentCreationPage({
         if (step === 5) setActiveShippingDoc('PL');
       }
 
-      // documentData 상태 업데이트 후 에디터 리마운트 (React 상태 업데이트는 비동기)
       setTimeout(() => {
         setEditorKey(prev => prev + 1);
       }, 50);
