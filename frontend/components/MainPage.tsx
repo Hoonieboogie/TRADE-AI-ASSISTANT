@@ -337,7 +337,17 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
 
                         // Check existence
                         const exists = doc.tradeData?.documents?.some((d: any) => d.doc_type === type);
-                        const isDocCompleted = (doc.content && doc.content[type === 'pl' ? 5 : type === 'ci' ? 4 : type === 'contract' ? 3 : type === 'pi' ? 2 : 1]);
+
+                        // Check completion status
+                        // 1. Content exists
+                        const hasContent = (doc.content && doc.content[type === 'pl' ? 5 : type === 'ci' ? 4 : type === 'contract' ? 3 : type === 'pi' ? 2 : 1]);
+
+                        // 2. Uploaded or Skipped (check tradeData)
+                        const tradeDoc = doc.tradeData?.documents?.find((d: any) => d.doc_type === type);
+                        const isUploaded = tradeDoc?.upload_status === 'ready';
+                        const isSkipped = tradeDoc?.doc_mode === 'skip';
+
+                        const isDocCompleted = hasContent || isUploaded || isSkipped;
 
                         if (!exists && !isDocCompleted) return null;
 
