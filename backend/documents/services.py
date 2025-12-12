@@ -43,11 +43,16 @@ def download_from_s3(s3_key: str, file_ext: str = '.pdf') -> str:
         region_name=settings.AWS_S3_REGION_NAME,
     )
 
+    # Use local tmp directory to avoid /var/folders permission issues with LibreOffice
+    import os
+    local_tmp_dir = os.path.join(settings.BASE_DIR, 'tmp')
+    os.makedirs(local_tmp_dir, exist_ok=True)
+
     # 임시 파일 생성 (확장자 유지)
     if not file_ext.startswith('.'):
         file_ext = '.' + file_ext
         
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext, dir=local_tmp_dir)
     temp_path = temp_file.name
     temp_file.close()
 
@@ -157,8 +162,12 @@ def convert_to_pdf(input_path: str, output_dir: str) -> str:
         if not os.path.exists(soffice_path):
             raise FileNotFoundError("LibreOffice (soffice) not found")
 
+    # LibreOffice 사용자 프로필 디렉토리 (충돌 방지용)
+    user_installation_dir = os.path.join(output_dir, f'LibreOffice_User_{uuid.uuid4()}')
+    
     cmd = [
         soffice_path,
+        f"-env:UserInstallation=file://{user_installation_dir}",
         '--headless',
         '--convert-to', 'pdf',
         '--outdir', output_dir,
@@ -179,9 +188,86 @@ def convert_to_pdf(input_path: str, output_dir: str) -> str:
             raise FileNotFoundError(f"Converted PDF not found at {pdf_path}")
             
         return pdf_path
-    except subprocess.CalledProcessError as e:
-        logger.error(f"LibreOffice conversion failed: {e.stderr.decode()}")
-        raise RuntimeError(f"PDF conversion failed: {e.stderr.decode()}")
+
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        # HWP 파일이고 변환 실패 시 hwp5html 폴백 시도
+        if input_path.lower().endswith('.hwp'):
+            logger.info("Direct HWP conversion failed, trying hwp5html fallback...")
+            hwp_output_dir = os.path.join(output_dir, f"{name_without_ext}_html_{uuid.uuid4()}")
+            
+            try:
+                import shutil
+                
+                # hwp5html을 위한 임시 디렉토리 생성
+                if os.path.exists(hwp_output_dir):
+                    shutil.rmtree(hwp_output_dir)
+                
+                # hwp5html 실행
+                hwp5html_path = shutil.which('hwp5html')
+                if not hwp5html_path:
+                    # Fallback to known path if not in PATH
+                    possible_path = '/opt/anaconda3/bin/hwp5html'
+                    if os.path.exists(possible_path):
+                        hwp5html_path = possible_path
+                
+                if not hwp5html_path:
+                    raise FileNotFoundError("hwp5html not found in PATH or standard locations")
+
+                hwp_cmd = [hwp5html_path, '--output', hwp_output_dir, input_path]
+                subprocess.run(hwp_cmd, check=True, capture_output=True)
+                
+                # 생성된 XHTML을 PDF로 변환
+                xhtml_path = os.path.join(hwp_output_dir, 'index.xhtml')
+                if os.path.exists(xhtml_path):
+                    # soffice로 XHTML -> PDF 변환
+                    fallback_cmd = [
+                        soffice_path,
+                        f"-env:UserInstallation=file://{user_installation_dir}",
+                        '--headless',
+                        '--convert-to', 'pdf',
+                        '--outdir', output_dir,
+                        xhtml_path
+                    ]
+                    
+                    subprocess.run(fallback_cmd, check=True, capture_output=True)
+                    
+                    # 생성된 PDF 확인 및 이름 변경 (index.pdf -> 원본이름.pdf)
+                    temp_pdf_path = os.path.join(output_dir, 'index.pdf')
+                    target_pdf_path = os.path.join(output_dir, f"{name_without_ext}.pdf")
+                    
+                    if os.path.exists(temp_pdf_path):
+                        if os.path.exists(target_pdf_path):
+                            os.remove(target_pdf_path)
+                        os.rename(temp_pdf_path, target_pdf_path)
+                        
+                        return target_pdf_path
+            
+            except Exception as fallback_error:
+                logger.error(f"Fallback conversion failed: {fallback_error}")
+            finally:
+                # 임시 HTML 디렉토리 정리
+                if os.path.exists(hwp_output_dir):
+                    shutil.rmtree(hwp_output_dir)
+
+        # 폴백도 실패하거나 HWP가 아닌 경우 원래 에러 로깅
+        if isinstance(e, subprocess.CalledProcessError):
+            logger.error(f"LibreOffice conversion failed: {e.stderr.decode()}")
+            raise RuntimeError(f"PDF conversion failed: {e.stderr.decode()}")
+        else:
+            raise e
+
+    except Exception as e:
+        logger.error(f"Unexpected error during PDF conversion: {e}")
+        raise
+
+    finally:
+        # LibreOffice 사용자 프로필 디렉토리 정리
+        import shutil
+        if os.path.exists(user_installation_dir):
+            try:
+                shutil.rmtree(user_installation_dir)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup LibreOffice user dir: {cleanup_error}")
 
 
 
@@ -308,9 +394,10 @@ def process_uploaded_document(document_id: int):
     finally:
         # 임시 파일 삭제
         import os
-        if processing_file_path and os.path.exists(processing_file_path):
-            os.unlink(processing_file_path)
-            logger.debug(f"Deleted temporary file: {processing_file_path}")
+        # Debugging: Don't delete temp file if conversion failed (or just keep it for now)
+        # if processing_file_path and os.path.exists(processing_file_path):
+        #     os.unlink(processing_file_path)
+        #     logger.debug(f"Deleted temporary file: {processing_file_path}")
 
         if converted_pdf_path and os.path.exists(converted_pdf_path):
             os.unlink(converted_pdf_path)

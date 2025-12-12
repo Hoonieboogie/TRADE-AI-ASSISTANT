@@ -54,3 +54,7 @@ venv/
 *.sqlite3
 staticfiles/
 media/
+
+# Backend Temp
+backend/tmp/
+*.log

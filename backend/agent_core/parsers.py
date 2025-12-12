@@ -114,17 +114,79 @@ def parse_hwp(file_path: str) -> List[Dict[str, Any]]:
         full_text = ""
         
         # 섹션 순서대로 읽기
-        for section in sorted(body_text_dirs, key=lambda x: x[1]):
+        # BodyText/SectionX 형태이므로 숫자 기준으로 정렬
+        def get_section_index(name_list):
+            try:
+                return int(name_list[1].replace('Section', ''))
+            except:
+                return 0
+                
+        for section in sorted(body_text_dirs, key=get_section_index):
             try:
                 stream = f.openstream(section)
                 data = stream.read()
                 
                 import zlib
+                import struct
+                import re
+                
                 # HWP 5.0의 BodyText는 zlib으로 압축되어 있을 수 있음
                 decompressed_data = zlib.decompress(data, -15)
-                # 유니코드 변환 (UTF-16LE)
-                text = decompressed_data.decode('utf-16le', errors='ignore')
-                full_text += text + "\n"
+                
+                section_text = ""
+                
+                # Try Strict Record Parsing First
+                try:
+                    pos = 0
+                    size_total = len(decompressed_data)
+                    
+                    while pos < size_total:
+                        if pos + 4 > size_total:
+                            break
+                            
+                        header_bytes = decompressed_data[pos:pos+4]
+                        header_val = struct.unpack('<I', header_bytes)[0]
+                        
+                        tag_id = header_val & 0x3FF
+                        size = (header_val >> 20) & 0xFFF
+                        
+                        pos += 4
+                        
+                        if size == 0xFFF:
+                            if pos + 4 > size_total:
+                                break
+                            size = struct.unpack('<I', decompressed_data[pos:pos+4])[0]
+                            pos += 4
+                            
+                        if pos + size > size_total:
+                            break
+                            
+                        if tag_id == 17: # HWPTAG_PARA_TEXT
+                            text_bytes = decompressed_data[pos:pos+size]
+                            # HWP text is UTF-16LE
+                            text = text_bytes.decode('utf-16le', errors='ignore')
+                            text = text.replace('\x00', '')
+                            section_text += text + "\n"
+                                
+                        pos += size
+                except Exception as e:
+                    logger.warning(f"Strict parsing failed for section {section}: {e}")
+                    # Fallback will handle it
+                    pass
+
+                # Fallback: If strict parsing yielded nothing, try raw decode + filter
+                if not section_text.strip():
+                    logger.info(f"Strict parsing yielded empty text for {section}, using fallback.")
+                    raw_text = decompressed_data.decode('utf-16le', errors='ignore')
+                    # Keep Hangul, English, Numbers, Common Punctuation, Newlines
+                    # Hangul: AC00-D7A3 (Syllables), 1100-11FF (Jamo), 3130-318F (Compat Jamo)
+                    # Basic Latin: 0020-007E
+                    # Newline/Tab: \n, \t
+                    clean_text = re.sub(r'[^\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F\u0020-\u007E\n\t]', '', raw_text)
+                    section_text = clean_text + "\n"
+                
+                full_text += section_text
+
             except Exception as e:
                 logger.warning(f"Failed to decompress/decode section {section}: {e}")
                 pass
