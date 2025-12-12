@@ -315,11 +315,11 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                             });
                             const lastDoc = sortedDocs[0];
                             const docNames: Record<string, string> = {
-                              'offer': '제안서 (Offer Sheet)',
-                              'pi': '견적송장 (Proforma Invoice)',
-                              'contract': '매매계약서 (Sales Contract)',
-                              'ci': '상업송장 (Commercial Invoice)',
-                              'pl': '패킹리스트 (Packing List)'
+                              'offer': 'Offer Sheet',
+                              'pi': 'Proforma Invoice',
+                              'contract': 'Sales Contract',
+                              'ci': 'Commercial Invoice',
+                              'pl': 'Packing List'
                             };
                             return docNames[lastDoc.doc_type] || lastDoc.doc_type;
                           })()}
