@@ -1,4 +1,5 @@
 import { FileText, Plus, ChevronDown, LogOut, CheckCircle, Clock, Search, Filter, User, Sparkles, Trash2, Check, Settings } from 'lucide-react';
+import { checkStepCompletion } from '../utils/documentUtils';
 import { PageType, SavedDocument } from '../App';
 import { useState, useEffect, useRef } from 'react';
 import PasswordChangeModal from './document-creation/modals/PasswordChangeModal';
@@ -350,8 +351,10 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                         const exists = doc.tradeData?.documents?.some((d: any) => d.doc_type === type);
 
                         // Check completion status
-                        // 1. Content exists
-                        const hasContent = (doc.content && doc.content[type === 'pl' ? 5 : type === 'ci' ? 4 : type === 'contract' ? 3 : type === 'pi' ? 2 : 1]);
+                        // 1. Content exists AND is complete (all required fields filled)
+                        const contentKey = type === 'pl' ? 5 : type === 'ci' ? 4 : type === 'contract' ? 3 : type === 'pi' ? 2 : 1;
+                        const stepContent = doc.content && doc.content[contentKey];
+                        const hasContent = stepContent && typeof stepContent === 'string' && checkStepCompletion(stepContent);
 
                         // 2. Uploaded or Skipped (check tradeData)
                         const tradeDoc = doc.tradeData?.documents?.find((d: any) => d.doc_type === type);
@@ -379,18 +382,16 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                           <span
                             key={type}
                             onClick={(e) => {
-                              if (isDocCompleted) {
-                                e.stopPropagation();
-                                const stepMapping: Record<string, number> = {
-                                  'offer': 1, 'pi': 2, 'contract': 3, 'ci': 4, 'pl': 5
-                                };
-                                onOpenDocument(doc, stepMapping[type]);
-                              }
+                              e.stopPropagation();
+                              const stepMapping: Record<string, number> = {
+                                'offer': 1, 'pi': 2, 'contract': 3, 'ci': 4, 'pl': 5
+                              };
+                              onOpenDocument(doc, stepMapping[type]);
                             }}
-                            className={`px-2 py-1 rounded-full text-[10.5px] font-medium transition-colors flex items-center gap-1 ${isActive
+                            className={`px-2 py-1 rounded-full text-[10.5px] font-medium transition-colors flex items-center gap-1 cursor-pointer hover:bg-blue-200 ${isActive
                               ? 'bg-blue-600 text-white shadow-sm'
-                              : 'bg-blue-100 text-blue-900 hover:bg-blue-200'
-                              } ${isDocCompleted ? 'cursor-pointer hover:bg-blue-200' : 'cursor-default'}`}
+                              : 'bg-blue-100 text-blue-900'
+                              }`}
                           >
                             {isDocCompleted && <Check className="w-3 h-3 text-green-600" strokeWidth={3} />}
                             {docNames[type]}

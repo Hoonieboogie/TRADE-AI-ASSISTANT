@@ -190,9 +190,16 @@ function App() {
     setCurrentStep(targetStep);
 
     // If navigating to CI (4) or PL (5), set the active shipping doc accordingly
-    if (targetStep === 4) setCurrentActiveShippingDoc('CI');
-    else if (targetStep === 5) setCurrentActiveShippingDoc('PL');
-    else setCurrentActiveShippingDoc(doc.lastActiveShippingDoc || null);
+    if (targetStep === 4) {
+      setCurrentStep(4);
+      setCurrentActiveShippingDoc('CI');
+    } else if (targetStep === 5) {
+      setCurrentStep(4); // PL is visually part of Step 4
+      setCurrentActiveShippingDoc('PL');
+    } else {
+      setCurrentStep(targetStep);
+      setCurrentActiveShippingDoc(doc.lastActiveShippingDoc || null);
+    }
 
     setDocSessionId(Date.now().toString());
     setIsNewTrade(false);
@@ -474,8 +481,25 @@ function App() {
                 stepModes: data.stepModes || {},
                 savedAt: new Date().toISOString(),
               };
-              await api.createVersion(document.doc_id, versionContent);
-              console.log(`[API] Saved version for doc ${document.doc_id} (${docType})`);
+
+              // [CHANGED] Check if content actually changed
+              let hasChanged = true;
+              if (document.latest_version && document.latest_version.content) {
+                const latest = document.latest_version.content;
+                const latestHtml = typeof latest === 'string' ? latest : (latest.html || '');
+                const latestTitle = typeof latest === 'string' ? '' : (latest.title || '');
+                // Compare HTML and Title (ignore stepModes for now or compare deep)
+                if (latestHtml === content && latestTitle === (data.title || '')) {
+                  hasChanged = false;
+                }
+              }
+
+              if (hasChanged) {
+                await api.createVersion(document.doc_id, versionContent);
+                console.log(`[API] Saved version for doc ${document.doc_id} (${docType})`);
+              } else {
+                console.log(`[API] Skipped saving unchanged doc ${document.doc_id} (${docType})`);
+              }
             }
           }
         }));
