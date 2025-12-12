@@ -258,7 +258,7 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                 <div
                   key={doc.id}
                   onClick={() => onOpenDocument(doc)}
-                  className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg transition-all duration-200 h-full cursor-pointer group flex flex-col relative overflow-hidden"
+                  className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg transition-all duration-200 cursor-pointer group flex flex-col relative overflow-hidden"
                 >
                   {/* Header Section */}
                   <div className="flex items-start gap-4 mb-6">
@@ -301,7 +301,7 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                   </div>
 
                   {/* Last Action Section */}
-                  <div className="mb-5">
+                  <div className="max-h-0 opacity-0 overflow-hidden mb-0 group-hover:max-h-[500px] group-hover:opacity-100 group-hover:mb-5 transition-all duration-300 ease-in-out">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 text-gray-800 font-medium text-base">
                         <span>최근 작업:</span>
@@ -389,7 +389,7 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                               onOpenDocument(doc, stepMapping[type]);
                             }}
                             className={`px-2 py-1 rounded-full text-[10.5px] font-medium transition-colors flex items-center gap-1 cursor-pointer hover:bg-blue-200 ${isActive
-                              ? 'bg-blue-600 text-white shadow-sm'
+                              ? 'bg-[#007AFF] text-white shadow-sm'
                               : 'bg-blue-100 text-blue-900'
                               }`}
                           >
