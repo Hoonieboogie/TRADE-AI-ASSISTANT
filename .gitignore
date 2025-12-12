@@ -58,3 +58,6 @@ media/
 # Backend Temp
 backend/tmp/
 *.log
+
+# Vite cache
+frontend/.vite/
