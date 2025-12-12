@@ -157,10 +157,14 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
   // 기존 채팅 선택
   const handleSelectChat = async (chat: GenChat) => {
+    // 1. 즉시 상태 초기화 (비동기 갭 동안 이전 채팅 UI 방지)
     setGenChatId(chat.gen_chat_id);
+    setMessages([]);  // 메시지 즉시 초기화
 
-    // 메시지 로드
+    // 2. 메시지 로드
     const loadedMessages = await loadMessages(chat.gen_chat_id);
+
+    // 3. 로드 완료 후 채팅이 바뀌지 않았는지 확인
     const formattedMessages: Message[] = loadedMessages.map((msg: GenMessage) => ({
       id: msg.gen_message_id.toString(),
       type: msg.sender_type === 'U' ? 'user' : 'ai' as const,
