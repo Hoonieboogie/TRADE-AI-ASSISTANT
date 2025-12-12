@@ -168,6 +168,49 @@ class S3Manager:
         except ClientError:
             return False
 
+    def delete_folder(self, prefix: str) -> dict:
+        """
+        S3에서 특정 prefix(폴더) 하위의 모든 파일 삭제
+
+        Args:
+            prefix: 삭제할 폴더 경로 (예: 'documents/251201001/513/')
+
+        Returns:
+            dict: {'deleted': int, 'errors': int}
+        """
+        deleted_count = 0
+        error_count = 0
+
+        try:
+            # prefix 하위의 모든 객체 나열
+            paginator = self.s3_client.get_paginator('list_objects_v2')
+            pages = paginator.paginate(Bucket=self.bucket_name, Prefix=prefix)
+
+            for page in pages:
+                if 'Contents' not in page:
+                    continue
+
+                # 삭제할 객체 목록 생성
+                objects_to_delete = [{'Key': obj['Key']} for obj in page['Contents']]
+
+                if objects_to_delete:
+                    # 일괄 삭제 (최대 1000개씩)
+                    response = self.s3_client.delete_objects(
+                        Bucket=self.bucket_name,
+                        Delete={'Objects': objects_to_delete}
+                    )
+
+                    deleted_count += len(response.get('Deleted', []))
+                    error_count += len(response.get('Errors', []))
+
+            logger.info(f"Deleted S3 folder '{prefix}': {deleted_count} files deleted, {error_count} errors")
+
+        except ClientError as e:
+            logger.error(f"Failed to delete S3 folder '{prefix}': {e}")
+            error_count += 1
+
+        return {'deleted': deleted_count, 'errors': error_count}
+
 
 # 싱글톤 인스턴스
 s3_manager = S3Manager()

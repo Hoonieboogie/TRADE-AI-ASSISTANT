@@ -271,6 +271,15 @@ class TradeFlowViewSet(viewsets.ModelViewSet):
 
         return Response(TradeFlowDetailSerializer(trade_flow).data)
 
+    def destroy(self, request, *args, **kwargs):
+        """Trade 삭제 (S3, Qdrant, Mem0, RDS 포함)"""
+        from .services import delete_trade_with_resources
+
+        trade_flow = self.get_object()
+        delete_trade_with_resources(trade_flow)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # =============================================================================
 # Document Views
