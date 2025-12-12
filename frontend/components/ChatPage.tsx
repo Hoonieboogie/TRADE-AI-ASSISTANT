@@ -99,6 +99,8 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const [genChatId, setGenChatId] = useState<number | null>(null);  // 채팅 세션 ID
   const [currentToolStatus, setCurrentToolStatus] = useState<string | null>(null);  // 현재 진행 중인 tool 상태
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const streamingChatIdRef = useRef<number | null>(null);  // 스트리밍 중인 채팅 ID
+  const currentChatIdRef = useRef<number | null>(null);  // 현재 활성 채팅 ID (클로저 문제 해결용)
 
   // 사이드바 상태
   const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -112,6 +114,11 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   useEffect(() => {
     setIsSidebarOpen(isDesktop);
   }, [isDesktop]);
+
+  // genChatId 변경 시 ref 동기화 (클로저 문제 해결)
+  useEffect(() => {
+    currentChatIdRef.current = genChatId;
+  }, [genChatId]);
 
   // API URL 정의 (useEffect보다 먼저 정의해야 함)
   const DJANGO_API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
@@ -160,6 +167,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     // 1. 즉시 상태 초기화 (비동기 갭 동안 이전 채팅 UI 방지)
     setGenChatId(chat.gen_chat_id);
     setMessages([]);  // 메시지 즉시 초기화
+    setCurrentToolStatus(null);  // tool 상태 초기화 (이전 채팅의 상태 표시 방지)
 
     // 2. 메시지 로드
     const loadedMessages = await loadMessages(chat.gen_chat_id);
@@ -179,6 +187,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const handleNewChat = () => {
     setGenChatId(null);
     setMessages([]);
+    setCurrentToolStatus(null);  // tool 상태 초기화
   };
 
   // 채팅 삭제 후 콜백 (현재 보고 있는 채팅이면 초기화)
@@ -186,6 +195,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     if (genChatId === deletedChatId) {
       setGenChatId(null);
       setMessages([]);
+      setCurrentToolStatus(null);  // tool 상태 초기화
     }
   };
 
@@ -206,6 +216,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setInput('');
     setIsLoading(true);
     setLoadingChatId(genChatId);  // 현재 채팅 ID 저장 (새 채팅이면 null, 이후 init에서 업데이트)
+    streamingChatIdRef.current = genChatId;  // 스트리밍 채팅 ID 추적 (ref로 클로저 문제 해결)
 
     try {
       // Django 스트리밍 API 호출 (user_id, gen_chat_id 포함)
@@ -230,7 +241,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
         throw new Error('스트림을 읽을 수 없습니다.');
       }
 
-      // 스트리밍 시작 전 AI 메시지 추가
+      // 스트리밍 시작 전 AI 메시지 추가 (아직 채팅 전환 전이므로 무조건 추가)
       setMessages(prev => [...prev, {
         id: aiMessageId,
         type: 'ai',
@@ -239,9 +250,15 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
         toolsUsed: []
       }]);
       setCurrentToolStatus('질문 분석');  // 스트리밍 시작 시 질문 분석 상태
+      currentChatIdRef.current = genChatId;  // 스트리밍 시작 시 현재 채팅 ID 동기화
 
       let accumulatedContent = '';
       let accumulatedTools: ToolUsed[] = [];
+
+      // 채팅 전환 여부 체크 헬퍼 (클로저 문제 해결)
+      const isStillSameChat = () => {
+        return streamingChatIdRef.current === currentChatIdRef.current;
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -261,6 +278,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                   const isNewChat = genChatId === null;
                   setGenChatId(data.gen_chat_id);
                   setLoadingChatId(data.gen_chat_id);  // 새 채팅 ID로 로딩 상태 업데이트
+                  streamingChatIdRef.current = data.gen_chat_id;  // ref도 업데이트
 
                   // 새 채팅인 경우 사이드바 목록에 즉시 추가
                   if (isNewChat) {
@@ -281,40 +299,52 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 }
               } else if (data.type === 'text') {
                 accumulatedContent += data.content;
-                setCurrentToolStatus('답변 생성');  // 텍스트 스트리밍 시작 시 답변 생성 상태
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: accumulatedContent }
-                    : msg
-                ));
-              } else if (data.type === 'tool') {
-                accumulatedTools = [...accumulatedTools, data.tool];
-                setCurrentToolStatus(data.tool.name);  // tool 상태 업데이트
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, toolsUsed: accumulatedTools }
-                    : msg
-                ));
-              } else if (data.type === 'done') {
-                setCurrentToolStatus(null);  // tool 상태 초기화
-                // 스트리밍 완료 시 최종 도구 정보 업데이트
-                if (data.tools_used && data.tools_used.length > 0) {
+                // 채팅이 전환되지 않았을 때만 UI 업데이트
+                if (isStillSameChat()) {
+                  setCurrentToolStatus('답변 생성');  // 텍스트 스트리밍 시작 시 답변 생성 상태
                   setMessages(prev => prev.map(msg =>
                     msg.id === aiMessageId
-                      ? { ...msg, toolsUsed: data.tools_used }
+                      ? { ...msg, content: accumulatedContent }
                       : msg
                   ));
                 }
-                // 기존 채팅이면 맨 위로 이동
-                if (genChatId) {
-                  bringChatToTop(genChatId);
+              } else if (data.type === 'tool') {
+                accumulatedTools = [...accumulatedTools, data.tool];
+                // 채팅이 전환되지 않았을 때만 UI 업데이트
+                if (isStillSameChat()) {
+                  setCurrentToolStatus(data.tool.name);  // tool 상태 업데이트
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, toolsUsed: accumulatedTools }
+                      : msg
+                  ));
+                }
+              } else if (data.type === 'done') {
+                // 채팅이 전환되지 않았을 때만 UI 업데이트
+                if (isStillSameChat()) {
+                  setCurrentToolStatus(null);  // tool 상태 초기화
+                  // 스트리밍 완료 시 최종 도구 정보 업데이트
+                  if (data.tools_used && data.tools_used.length > 0) {
+                    setMessages(prev => prev.map(msg =>
+                      msg.id === aiMessageId
+                        ? { ...msg, toolsUsed: data.tools_used }
+                        : msg
+                    ));
+                  }
+                }
+                // 기존 채팅이면 맨 위로 이동 (사이드바 정렬은 항상 수행)
+                if (streamingChatIdRef.current) {
+                  bringChatToTop(streamingChatIdRef.current);
                 }
               } else if (data.type === 'error') {
-                setMessages(prev => prev.map(msg =>
-                  msg.id === aiMessageId
-                    ? { ...msg, content: `오류가 발생했습니다: ${data.error}` }
-                    : msg
-                ));
+                // 채팅이 전환되지 않았을 때만 UI 업데이트
+                if (isStillSameChat()) {
+                  setMessages(prev => prev.map(msg =>
+                    msg.id === aiMessageId
+                      ? { ...msg, content: `오류가 발생했습니다: ${data.error}` }
+                      : msg
+                  ));
+                }
               }
             } catch {
               // JSON 파싱 실패 시 무시
@@ -325,28 +355,35 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
     } catch (error) {
       console.error('API 호출 오류:', error);
-      const errorContent = `오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\n서버가 실행 중인지 확인해주세요.`;
 
-      // AI 메시지가 이미 추가되었는지 확인 후 처리
-      setMessages(prev => {
-        const hasAiMessage = prev.some(m => m.id === aiMessageId);
-        if (hasAiMessage) {
-          return prev.map(msg =>
-            msg.id === aiMessageId ? { ...msg, content: errorContent } : msg
-          );
-        } else {
-          return [...prev, {
-            id: aiMessageId,
-            type: 'ai' as const,
-            content: errorContent,
-            timestamp: new Date()
-          }];
-        }
-      });
+      // 채팅이 전환되지 않았을 때만 에러 메시지 표시
+      if (streamingChatIdRef.current === currentChatIdRef.current) {
+        const errorContent = `오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\n서버가 실행 중인지 확인해주세요.`;
+
+        // AI 메시지가 이미 추가되었는지 확인 후 처리
+        setMessages(prev => {
+          const hasAiMessage = prev.some(m => m.id === aiMessageId);
+          if (hasAiMessage) {
+            return prev.map(msg =>
+              msg.id === aiMessageId ? { ...msg, content: errorContent } : msg
+            );
+          } else {
+            return [...prev, {
+              id: aiMessageId,
+              type: 'ai' as const,
+              content: errorContent,
+              timestamp: new Date()
+            }];
+          }
+        });
+      }
     } finally {
       setIsLoading(false);
       setLoadingChatId(null);  // 로딩 채팅 ID 초기화
-      setCurrentToolStatus(null);  // tool 상태 초기화
+      // 채팅이 전환되지 않았을 때만 tool 상태 초기화
+      if (streamingChatIdRef.current === currentChatIdRef.current) {
+        setCurrentToolStatus(null);
+      }
     }
   };
 
