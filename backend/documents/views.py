@@ -168,6 +168,40 @@ class PasswordChangeView(APIView):
         return Response({'message': '비밀번호가 성공적으로 변경되었습니다.'})
 
 
+class PasswordResetView(APIView):
+    """관리자용 비밀번호 초기화 API"""
+
+    def post(self, request):
+        user_id = request.data.get('user_id')
+
+        # 필수 필드 검증
+        if not user_id:
+            return Response(
+                {'error': 'user_id는 필수입니다.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(user_id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': '사용자를 찾을 수 없습니다.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # 비밀번호를 "a123456!"로 초기화
+        user.set_password('a123456!')
+        user.save()
+
+        logger.info(f"Password reset for user: {user.emp_no} (user_id: {user_id})")
+
+        return Response({
+            'message': '비밀번호가 초기화되었습니다.',
+            'user_id': user.user_id,
+            'emp_no': user.emp_no
+        })
+
+
 # =============================================================================
 # Department Views
 # =============================================================================
@@ -192,6 +226,37 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return UserCreateSerializer
         return UserSerializer
+
+    def get_queryset(self):
+        """검색 및 필터링"""
+        from django.db.models import Q
+
+        queryset = super().get_queryset()
+
+        # 검색어 (이름 또는 사원번호)
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(emp_no__icontains=search)
+            )
+
+        # 부서 필터
+        dept_id = self.request.query_params.get('dept_id')
+        if dept_id:
+            queryset = queryset.filter(dept_id=dept_id)
+
+        # 활성 상태 필터
+        activation = self.request.query_params.get('activation')
+        if activation is not None and activation != '':
+            queryset = queryset.filter(activation=activation.lower() == 'true')
+
+        # 역할 필터
+        user_role = self.request.query_params.get('user_role')
+        if user_role:
+            queryset = queryset.filter(user_role=user_role)
+
+        # 기본 정렬: 사원번호 오름차순
+        return queryset.order_by('emp_no')
 
 
 # =============================================================================

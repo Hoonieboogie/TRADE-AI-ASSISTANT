@@ -10,6 +10,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     LoginView,
     PasswordChangeView,
+    PasswordResetView,
     DepartmentViewSet,
     UserViewSet,
     TradeFlowViewSet,
@@ -33,6 +34,7 @@ urlpatterns = [
     # 인증
     path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/password-change/', PasswordChangeView.as_view(), name='password-change'),
+    path('auth/password-reset/', PasswordResetView.as_view(), name='password-reset'),
 
     # ViewSet routes (먼저 배치하여 trades/, users/ 등이 먼저 매칭되도록 함)
     path('', include(router.urls)),

@@ -3,6 +3,7 @@ import MainPage from './components/MainPage';
 import ChatPage from './components/ChatPage';
 import DocumentCreationPage from './components/DocumentCreationPage';
 import LoginPage from './components/LoginPage';
+import AdminPage from './components/AdminPage';
 import { User, api, Trade } from './utils/api';
 import { checkStepCompletion, hydrateTemplate } from './utils/documentUtils';
 import { offerSheetTemplateHTML } from './templates/offerSheet';
@@ -11,7 +12,7 @@ import { saleContractTemplateHTML } from './templates/saleContract';
 import { commercialInvoiceTemplateHTML } from './templates/commercialInvoice';
 import { packingListTemplateHTML } from './templates/packingList';
 
-export type PageType = 'main' | 'chat' | 'documents';
+export type PageType = 'main' | 'chat' | 'documents' | 'admin';
 export type TransitionType = 'none' | 'expanding' | 'shrinking';
 
 export interface DocumentData {
@@ -500,7 +501,12 @@ function App() {
       setUserEmail(savedEmail);
       if (savedUser) {
         try {
-          setCurrentUser(JSON.parse(savedUser));
+          const user = JSON.parse(savedUser);
+          setCurrentUser(user);
+          // 관리자인 경우 관리자 페이지로 강제 이동
+          if (user.user_role === 'admin') {
+            setCurrentPage('admin');
+          }
         } catch {
           // 파싱 실패 시 무시
         }
@@ -522,6 +528,12 @@ function App() {
     setIsAuthenticated(true);
     if (user) {
       setCurrentUser(user);
+      // 관리자인 경우 관리자 페이지로 이동
+      if (user.user_role === 'admin') {
+        setCurrentPage('admin');
+      } else {
+        setCurrentPage('main');
+      }
     }
 
     // localStorage에 인증 상태 저장
@@ -582,6 +594,7 @@ function App() {
             onLogoClick={handleOpenChat}
             onDeleteDocument={handleDeleteDocument}
             isLoading={isLoadingTrades}
+            currentUser={currentUser}
           />
         </div>
       )}
@@ -631,6 +644,7 @@ function App() {
             onLogoClick={handleOpenChat}
             onDeleteDocument={handleDeleteDocument}
             isLoading={isLoadingTrades}
+            currentUser={currentUser}
           />
           {/* 글로우 효과 원 */}
           <div
@@ -691,6 +705,15 @@ function App() {
           }}
           initialActiveShippingDoc={currentActiveShippingDoc}
           getDocId={getDocId}
+        />
+      )}
+
+      {/* 관리자 페이지 */}
+      {currentPage === 'admin' && currentUser?.user_role === 'admin' && (
+        <AdminPage
+          onNavigate={handleNavigate}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
       )}
 

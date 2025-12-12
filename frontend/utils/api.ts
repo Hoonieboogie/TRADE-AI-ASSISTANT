@@ -21,15 +21,41 @@ if (isDev) {
 
 // ===== Types =====
 
+export interface Department {
+  dept_id: number;
+  dept_name: string;
+}
+
 export interface User {
   user_id: number;
   emp_no: string;
   name: string;
   user_role: 'user' | 'admin';
-  dept: {
-    dept_id: number;
-    dept_name: string;
-  } | null;
+  activation: boolean;
+  date_joined?: string;
+  dept: Department | null;
+}
+
+export interface UserCreateData {
+  emp_no: string;
+  name: string;
+  dept?: number | null;
+  user_role?: 'user' | 'admin';
+}
+
+export interface UserUpdateData {
+  emp_no?: string;
+  name?: string;
+  dept_id?: number | null;
+  activation?: boolean;
+  user_role?: 'user' | 'admin';
+}
+
+export interface UserSearchParams {
+  search?: string;
+  dept_id?: number;
+  activation?: boolean;
+  user_role?: 'user' | 'admin';
 }
 
 export interface LoginResponse extends User {}
@@ -166,6 +192,63 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ emp_no, current_password, new_password }),
     });
+  }
+
+  async resetPassword(userId: number): Promise<{ message: string; user_id: number; emp_no: string }> {
+    return this.request<{ message: string; user_id: number; emp_no: string }>(
+      '/api/documents/auth/password-reset/',
+      {
+        method: 'POST',
+        body: JSON.stringify({ user_id: userId }),
+      }
+    );
+  }
+
+  // ===== Users =====
+
+  async getUsers(params?: UserSearchParams): Promise<User[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.dept_id) queryParams.append('dept_id', params.dept_id.toString());
+    if (params?.activation !== undefined) queryParams.append('activation', params.activation.toString());
+    if (params?.user_role) queryParams.append('user_role', params.user_role);
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString
+      ? `/api/documents/users/?${queryString}`
+      : '/api/documents/users/';
+
+    return this.request<User[]>(endpoint);
+  }
+
+  async getUser(userId: number): Promise<User> {
+    return this.request<User>(`/api/documents/users/${userId}/`);
+  }
+
+  async createUser(data: UserCreateData): Promise<User> {
+    return this.request<User>('/api/documents/users/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(userId: number, data: UserUpdateData): Promise<User> {
+    return this.request<User>(`/api/documents/users/${userId}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    await this.request(`/api/documents/users/${userId}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // ===== Departments =====
+
+  async getDepartments(): Promise<Department[]> {
+    return this.request<Department[]>('/api/documents/departments/');
   }
 
   // ===== Trades =====
