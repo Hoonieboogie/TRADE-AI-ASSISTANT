@@ -93,7 +93,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingChatId, setLoadingChatId] = useState<number | null>(null);  // 로딩 중인 채팅 ID
+  const [loadingSessionId, setLoadingSessionId] = useState<number | null>(null);  // 로딩 중인 세션 ID
   const [showMyPageModal, setShowMyPageModal] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [genChatId, setGenChatId] = useState<number | null>(null);  // 채팅 세션 ID
@@ -236,11 +236,11 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
-    setLoadingChatId(genChatId);  // 현재 채팅 ID 저장 (새 채팅이면 null, 이후 init에서 업데이트)
 
     // 이 스트리밍의 고유 세션 ID 저장
     const myStreamingSession = currentSessionRef.current;
     streamingSessionRef.current = myStreamingSession;
+    setLoadingSessionId(myStreamingSession);  // 로딩 중인 세션 ID 저장
 
     try {
       // Django 스트리밍 API 호출 (user_id, gen_chat_id 포함)
@@ -300,7 +300,6 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 if (data.gen_chat_id) {
                   const isNewChat = genChatId === null;
                   setGenChatId(data.gen_chat_id);
-                  setLoadingChatId(data.gen_chat_id);  // 새 채팅 ID로 로딩 상태 업데이트
 
                   // 새 채팅인 경우 사이드바 목록에 즉시 추가
                   if (isNewChat) {
@@ -401,7 +400,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
       }
     } finally {
       setIsLoading(false);
-      setLoadingChatId(null);  // 로딩 채팅 ID 초기화
+      setLoadingSessionId(null);  // 로딩 세션 ID 초기화
       // 세션이 동일할 때만 tool 상태 초기화
       if (streamingSessionRef.current === currentSessionRef.current) {
         setCurrentToolStatus(null);
@@ -530,9 +529,9 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 </div>
               ))}
 
-              {/* 로딩 표시: 현재 채팅이 로딩 중일 때만 표시 */}
+              {/* 로딩 표시: 현재 세션이 로딩 중일 때만 표시 */}
               {isLoading && messages.length > 0 &&
-                (loadingChatId === genChatId || (loadingChatId === null && genChatId === null)) &&
+                loadingSessionId === currentSessionRef.current &&
                 (messages[messages.length - 1].type === 'user' ||
                 (messages[messages.length - 1].type === 'ai' && !messages[messages.length - 1].content))
               && (
