@@ -99,8 +99,8 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const [genChatId, setGenChatId] = useState<number | null>(null);  // 채팅 세션 ID
   const [currentToolStatus, setCurrentToolStatus] = useState<string | null>(null);  // 현재 진행 중인 tool 상태
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const streamingChatIdRef = useRef<number | null>(null);  // 스트리밍 중인 채팅 ID
-  const currentChatIdRef = useRef<number | null>(null);  // 현재 활성 채팅 ID (클로저 문제 해결용)
+  const streamingSessionRef = useRef<number>(0);  // 현재 스트리밍 세션 ID (고유값)
+  const currentSessionRef = useRef<number>(0);  // 현재 활성 세션 ID (채팅 전환 시 증가)
 
   // 사이드바 상태
   const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -115,10 +115,10 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setIsSidebarOpen(isDesktop);
   }, [isDesktop]);
 
-  // genChatId 변경 시 ref 동기화 (클로저 문제 해결)
-  useEffect(() => {
-    currentChatIdRef.current = genChatId;
-  }, [genChatId]);
+  // 세션 ID 증가 함수 (채팅 전환 시 호출하여 이전 스트리밍 무효화)
+  const invalidateCurrentSession = () => {
+    currentSessionRef.current += 1;
+  };
 
   // API URL 정의 (useEffect보다 먼저 정의해야 함)
   const DJANGO_API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
@@ -156,9 +156,13 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
   // 채팅방 나가기 (삭제 후 메인으로 이동)
   const handleExitChat = async (logoRect: DOMRect) => {
+    // 세션 무효화 (진행 중인 스트리밍이 이 채팅에 영향 주지 않도록)
+    invalidateCurrentSession();
+
     await deleteChat();
     setGenChatId(null);
     setMessages([]);
+    setCurrentToolStatus(null);  // tool 상태 초기화
     onLogoClick(logoRect);
   };
 
@@ -166,16 +170,20 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const handleSelectChat = async (chat: GenChat) => {
     const targetChatId = chat.gen_chat_id;
 
-    // 1. 즉시 상태 초기화 (비동기 갭 동안 이전 채팅 UI 방지)
+    // 1. 세션 무효화 (진행 중인 스트리밍이 이 채팅에 영향 주지 않도록)
+    invalidateCurrentSession();
+    const mySession = currentSessionRef.current;
+
+    // 2. 상태 초기화
     setGenChatId(targetChatId);
     setMessages([]);  // 메시지 즉시 초기화
     setCurrentToolStatus(null);  // tool 상태 초기화 (이전 채팅의 상태 표시 방지)
 
-    // 2. 메시지 로드
+    // 3. 메시지 로드
     const loadedMessages = await loadMessages(targetChatId);
 
-    // 3. 로드 완료 후 채팅이 바뀌지 않았는지 확인 (레이스 컨디션 방지)
-    if (currentChatIdRef.current !== targetChatId) {
+    // 4. 로드 완료 후 세션이 바뀌지 않았는지 확인 (레이스 컨디션 방지)
+    if (currentSessionRef.current !== mySession) {
       // 메시지 로딩 중 다른 채팅으로 전환됨 - 결과 무시
       return;
     }
@@ -192,6 +200,9 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
   // 새 채팅 시작
   const handleNewChat = () => {
+    // 세션 무효화 (진행 중인 스트리밍이 이 채팅에 영향 주지 않도록)
+    invalidateCurrentSession();
+
     setGenChatId(null);
     setMessages([]);
     setCurrentToolStatus(null);  // tool 상태 초기화
@@ -200,6 +211,9 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   // 채팅 삭제 후 콜백 (현재 보고 있는 채팅이면 초기화)
   const handleChatDeleted = (deletedChatId: number) => {
     if (genChatId === deletedChatId) {
+      // 세션 무효화 (진행 중인 스트리밍이 이 채팅에 영향 주지 않도록)
+      invalidateCurrentSession();
+
       setGenChatId(null);
       setMessages([]);
       setCurrentToolStatus(null);  // tool 상태 초기화
@@ -223,7 +237,10 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setInput('');
     setIsLoading(true);
     setLoadingChatId(genChatId);  // 현재 채팅 ID 저장 (새 채팅이면 null, 이후 init에서 업데이트)
-    streamingChatIdRef.current = genChatId;  // 스트리밍 채팅 ID 추적 (ref로 클로저 문제 해결)
+
+    // 이 스트리밍의 고유 세션 ID 저장
+    const myStreamingSession = currentSessionRef.current;
+    streamingSessionRef.current = myStreamingSession;
 
     try {
       // Django 스트리밍 API 호출 (user_id, gen_chat_id 포함)
@@ -257,14 +274,13 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
         toolsUsed: []
       }]);
       setCurrentToolStatus('질문 분석');  // 스트리밍 시작 시 질문 분석 상태
-      currentChatIdRef.current = genChatId;  // 스트리밍 시작 시 현재 채팅 ID 동기화
 
       let accumulatedContent = '';
       let accumulatedTools: ToolUsed[] = [];
 
-      // 채팅 전환 여부 체크 헬퍼 (클로저 문제 해결)
-      const isStillSameChat = () => {
-        return streamingChatIdRef.current === currentChatIdRef.current;
+      // 채팅 전환 여부 체크 헬퍼 (세션 ID 비교로 확실한 격리)
+      const isStillSameSession = () => {
+        return streamingSessionRef.current === currentSessionRef.current;
       };
 
       while (true) {
@@ -285,7 +301,6 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                   const isNewChat = genChatId === null;
                   setGenChatId(data.gen_chat_id);
                   setLoadingChatId(data.gen_chat_id);  // 새 채팅 ID로 로딩 상태 업데이트
-                  streamingChatIdRef.current = data.gen_chat_id;  // ref도 업데이트
 
                   // 새 채팅인 경우 사이드바 목록에 즉시 추가
                   if (isNewChat) {
@@ -306,8 +321,8 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 }
               } else if (data.type === 'text') {
                 accumulatedContent += data.content;
-                // 채팅이 전환되지 않았을 때만 UI 업데이트
-                if (isStillSameChat()) {
+                // 세션이 동일할 때만 UI 업데이트
+                if (isStillSameSession()) {
                   setCurrentToolStatus('답변 생성');  // 텍스트 스트리밍 시작 시 답변 생성 상태
                   setMessages(prev => prev.map(msg =>
                     msg.id === aiMessageId
@@ -317,8 +332,8 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 }
               } else if (data.type === 'tool') {
                 accumulatedTools = [...accumulatedTools, data.tool];
-                // 채팅이 전환되지 않았을 때만 UI 업데이트
-                if (isStillSameChat()) {
+                // 세션이 동일할 때만 UI 업데이트
+                if (isStillSameSession()) {
                   setCurrentToolStatus(data.tool.name);  // tool 상태 업데이트
                   setMessages(prev => prev.map(msg =>
                     msg.id === aiMessageId
@@ -327,8 +342,8 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                   ));
                 }
               } else if (data.type === 'done') {
-                // 채팅이 전환되지 않았을 때만 UI 업데이트
-                if (isStillSameChat()) {
+                // 세션이 동일할 때만 UI 업데이트
+                if (isStillSameSession()) {
                   setCurrentToolStatus(null);  // tool 상태 초기화
                   // 스트리밍 완료 시 최종 도구 정보 업데이트
                   if (data.tools_used && data.tools_used.length > 0) {
@@ -339,13 +354,13 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                     ));
                   }
                 }
-                // 기존 채팅이면 맨 위로 이동 (사이드바 정렬은 항상 수행)
-                if (streamingChatIdRef.current) {
-                  bringChatToTop(streamingChatIdRef.current);
+                // 사이드바 정렬은 항상 수행 (genChatId 사용)
+                if (genChatId) {
+                  bringChatToTop(genChatId);
                 }
               } else if (data.type === 'error') {
-                // 채팅이 전환되지 않았을 때만 UI 업데이트
-                if (isStillSameChat()) {
+                // 세션이 동일할 때만 UI 업데이트
+                if (isStillSameSession()) {
                   setMessages(prev => prev.map(msg =>
                     msg.id === aiMessageId
                       ? { ...msg, content: `오류가 발생했습니다: ${data.error}` }
@@ -363,8 +378,8 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     } catch (error) {
       console.error('API 호출 오류:', error);
 
-      // 채팅이 전환되지 않았을 때만 에러 메시지 표시
-      if (streamingChatIdRef.current === currentChatIdRef.current) {
+      // 세션이 동일할 때만 에러 메시지 표시
+      if (streamingSessionRef.current === currentSessionRef.current) {
         const errorContent = `오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}\n\n서버가 실행 중인지 확인해주세요.`;
 
         // AI 메시지가 이미 추가되었는지 확인 후 처리
@@ -387,8 +402,8 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     } finally {
       setIsLoading(false);
       setLoadingChatId(null);  // 로딩 채팅 ID 초기화
-      // 채팅이 전환되지 않았을 때만 tool 상태 초기화
-      if (streamingChatIdRef.current === currentChatIdRef.current) {
+      // 세션이 동일할 때만 tool 상태 초기화
+      if (streamingSessionRef.current === currentSessionRef.current) {
         setCurrentToolStatus(null);
       }
     }
