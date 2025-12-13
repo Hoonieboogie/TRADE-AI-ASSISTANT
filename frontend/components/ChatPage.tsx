@@ -299,9 +299,13 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
                 // 채팅 세션 ID 저장 (메모리 기능용)
                 if (data.gen_chat_id) {
                   const isNewChat = genChatId === null;
-                  setGenChatId(data.gen_chat_id);
 
-                  // 새 채팅인 경우 사이드바 목록에 즉시 추가
+                  // 세션이 동일할 때만 genChatId 업데이트 (다른 채팅으로 전환했으면 무시)
+                  if (isStillSameSession()) {
+                    setGenChatId(data.gen_chat_id);
+                  }
+
+                  // 새 채팅인 경우 사이드바 목록에 즉시 추가 (세션과 무관하게 항상 추가)
                   if (isNewChat) {
                     const truncatedTitle = messageToSend.length > 30
                       ? messageToSend.substring(0, 30) + '...'
