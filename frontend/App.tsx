@@ -762,15 +762,6 @@ function App() {
           onCreateTrade={createNewTrade}
           onExit={handleDocumentExit}
           versions={currentDocId ? savedDocuments.find(d => d.id === currentDocId)?.versions : undefined}
-          onRestore={(version) => {
-            setDocumentData(prev => ({
-              ...prev,
-              [version.step]: version.data[version.step]
-            }));
-            if (currentStep !== version.step) {
-              setCurrentStep(version.step);
-            }
-          }}
           initialActiveShippingDoc={currentActiveShippingDoc}
           getDocId={getDocId}
         />
