@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, MessageSquare, AlertCircle, ChevronLeft } from 'lucide-react';
+import { Plus, MessageSquare, AlertCircle } from 'lucide-react';
 import ChatListItem from './ChatListItem';
 import { GenChat } from './useChatList';
 
@@ -182,23 +182,14 @@ export default function ChatSidebar({
           <div className="w-[320px] h-full flex flex-col">
             {/* Header */}
             <div className="p-5 pb-4 border-b border-gray-100 bg-white/50">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                    <MessageSquare className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-lg text-gray-900">채팅 목록</h2>
-                    <p className="text-xs text-gray-500">{chats.length}개의 대화</p>
-                  </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <MessageSquare className="w-5 h-5 text-blue-600" />
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  title="사이드바 닫기"
-                >
-                  <ChevronLeft className="w-5 h-5 text-gray-400" />
-                </button>
+                <div>
+                  <h2 className="font-bold text-lg text-gray-900">채팅 목록</h2>
+                  <p className="text-xs text-gray-500">{chats.length}개의 대화</p>
+                </div>
               </div>
 
               {/* New Chat Button */}
@@ -290,22 +281,14 @@ export default function ChatSidebar({
           >
             {/* Header */}
             <div className="p-5 pb-4 border-b border-gray-100 bg-white/50">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                    <MessageSquare className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-lg text-gray-900">채팅 목록</h2>
-                    <p className="text-xs text-gray-500">{chats.length}개의 대화</p>
-                  </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <MessageSquare className="w-5 h-5 text-blue-600" />
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
+                <div>
+                  <h2 className="font-bold text-lg text-gray-900">채팅 목록</h2>
+                  <p className="text-xs text-gray-500">{chats.length}개의 대화</p>
+                </div>
               </div>
 
               {/* New Chat Button */}

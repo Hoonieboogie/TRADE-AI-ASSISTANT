@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Search, TrendingUp, LogOut, User, Globe, Database, Wrench, ShieldAlert, Scale, Menu } from 'lucide-react';
+import { Send, Sparkles, Search, TrendingUp, LogOut, User, Globe, Database, Wrench, ShieldAlert, Scale, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { PageType } from '../App';
 import PasswordChangeModal from './document-creation/modals/PasswordChangeModal';
@@ -420,14 +421,6 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
       <header className="bg-white/80 backdrop-blur-md flex-shrink-0 sticky top-0 z-20 shadow-sm">
         <div className="px-4 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Sidebar Toggle Button */}
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
-              title="채팅 목록"
-            >
-              <Menu className="w-5 h-5 text-gray-600" />
-            </button>
             <button
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -463,7 +456,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
       </header>
 
       {/* Main Content Area with Sidebar */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative">
         {/* Sidebar */}
         <ChatSidebar
           isOpen={isSidebarOpen}
@@ -475,6 +468,32 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
           isDesktop={isDesktop}
           chatListHook={chatListHook}
         />
+
+        {/* Sidebar Toggle Button - 탭 형태로 항상 표시 */}
+        <motion.button
+          initial={false}
+          animate={{
+            left: isSidebarOpen ? (isDesktop ? 320 : 320) : 0,
+            opacity: isDesktop ? 1 : (isSidebarOpen ? 0 : 1)
+          }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute top-1/2 -translate-y-1/2 z-30
+                     w-6 h-20 bg-white/95 backdrop-blur-sm border border-l-0 border-gray-200
+                     rounded-r-xl shadow-md
+                     hover:w-7 hover:bg-blue-50 hover:border-blue-200 hover:shadow-lg
+                     transition-all duration-200 ease-out
+                     flex items-center justify-center group"
+          style={{ left: isSidebarOpen ? (isDesktop ? 320 : 320) : 0 }}
+          title={isSidebarOpen ? "채팅 목록 닫기" : "채팅 목록 열기"}
+        >
+          <motion.div
+            animate={{ rotate: isSidebarOpen ? 180 : 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+          </motion.div>
+        </motion.button>
 
         {/* Chat Content Area */}
         <div className="flex-1 flex flex-col min-h-0">
