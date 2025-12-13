@@ -100,6 +100,8 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const [genChatId, setGenChatId] = useState<number | null>(null);  // 채팅 세션 ID
   const [currentToolStatus, setCurrentToolStatus] = useState<string | null>(null);  // 현재 진행 중인 tool 상태
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const initialTextareaRef = useRef<HTMLTextAreaElement>(null);
   const streamingSessionRef = useRef<number>(0);  // 현재 스트리밍 세션 ID (고유값)
   const currentSessionRef = useRef<number>(0);  // 현재 활성 세션 ID (채팅 전환 시 증가)
 
@@ -126,6 +128,26 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // textarea 자동 높이 조절 (최대 200px)
+  const adjustTextareaHeight = (ref: React.RefObject<HTMLTextAreaElement>) => {
+    const textarea = ref.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      const newHeight = Math.min(textarea.scrollHeight, 200);
+      textarea.style.height = `${newHeight}px`;
+    }
+  };
+
+  // textarea 높이 리셋
+  const resetTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+    if (initialTextareaRef.current) {
+      initialTextareaRef.current.style.height = 'auto';
+    }
   };
 
   useEffect(() => {
@@ -236,6 +258,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
+    resetTextareaHeight();
     setIsLoading(true);
 
     // 이 스트리밍의 고유 세션 ID 저장
@@ -590,18 +613,27 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
               </div>
 
               <div className="relative mb-8">
-                <input
-                  type="text"
+                <textarea
+                  ref={initialTextareaRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    adjustTextareaHeight(initialTextareaRef);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
                   placeholder="무역 관련 질문을 입력하세요..."
-                  className="w-full px-6 py-4 pr-14 rounded-full border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                  rows={1}
+                  className="w-full px-6 py-4 pr-14 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm resize-none overflow-y-auto"
                 />
                 <button
                   onClick={() => handleSend()}
                   disabled={!input.trim() || isLoading}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="absolute right-3 bottom-3 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
                 </button>
@@ -629,18 +661,27 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
         {hasMessages && (
           <div className="bg-white/80 backdrop-blur-md px-8 py-6 flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
             <div className="max-w-3xl mx-auto relative">
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  adjustTextareaHeight(textareaRef);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
                 placeholder="무역 관련 질문을 입력하세요..."
-                className="w-full px-6 py-4 pr-14 rounded-full border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={1}
+                className="w-full px-6 py-4 pr-14 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-y-auto"
               />
               <button
                 onClick={() => handleSend()}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute right-3 bottom-3 w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />
               </button>
