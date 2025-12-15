@@ -230,6 +230,8 @@ class TradeFlowListSerializer(serializers.ModelSerializer):
 
     def get_completed_count(self, obj):
         # Check latest snapshot for completed steps
+        print(f"DEBUG: obj type: {type(obj)}")
+        print(f"DEBUG: obj dir: {dir(obj)}")
         latest = obj.versions.first()
         if latest and latest.snapshot:
             # Count how many steps have content in the snapshot
