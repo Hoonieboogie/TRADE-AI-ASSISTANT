@@ -172,6 +172,24 @@ export default function DocumentCreationPage({
     }
   }, [documentData, setDocumentData]);
 
+  // stepModes, 업로드 상태가 변경될 때 documentData에 동기화 (sessionStorage 저장용)
+  useEffect(() => {
+    const hasUploadData = Object.keys(uploadedFileNames).length > 0 || Object.keys(uploadedDocumentUrls).length > 0;
+    const hasStepModes = Object.keys(stepModes).length > 0;
+
+    if (hasUploadData || hasStepModes) {
+      setDocumentData((prev: DocumentData) => ({
+        ...prev,
+        ...(hasStepModes && { stepModes }),
+        ...(hasUploadData && {
+          uploadedFileNames,
+          uploadedFileUrls: uploadedDocumentUrls,
+          uploadedConvertedPdfUrls
+        })
+      }));
+    }
+  }, [stepModes, uploadedFileNames, uploadedDocumentUrls, uploadedConvertedPdfUrls, setDocumentData]);
+
   // Trigger Intro Animation
   useEffect(() => {
     if (shouldShowChatButton && !hasShownIntro && !showIntro) {
@@ -690,7 +708,7 @@ export default function DocumentCreationPage({
       await onCreateTrade();
     }
 
-    // 프론트엔드 상태 업데이트
+    // 프론트엔드 상태 업데이트 (useEffect에서 documentData에 자동 동기화됨)
     setStepModes(prev => ({ ...prev, [currentStep]: mode }));
 
     // 템플릿 로드는 변경사항으로 간주하지 않음
@@ -1058,9 +1076,7 @@ export default function DocumentCreationPage({
       leftContent = (
         <button
           onClick={() => {
-            // 모드 전환 시 업로드 정보는 유지 (삭제하지 않음)
-            // 업로드된 파일은 백엔드 Document에 저장되어 있으므로,
-            // 다시 업로드 모드로 돌아오면 기존 파일을 사용할 수 있음
+            // 모드 전환 (useEffect에서 documentData에 자동 동기화됨)
             setStepModes(prev => ({ ...prev, [currentStep]: null }));
           }}
           className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors px-4 py-2 rounded-lg hover:bg-gray-100"
@@ -1283,6 +1299,7 @@ export default function DocumentCreationPage({
             }
             setActiveShippingDoc(null);
           } else {
+            // 모드 전환 (useEffect에서 documentData에 자동 동기화됨)
             setStepModes(prev => ({ ...prev, [currentStep]: null }));
           }
         }}

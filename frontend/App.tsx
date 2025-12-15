@@ -209,12 +209,18 @@ function App() {
     const uploadedFileUrls: Record<number, string> = {};
     const uploadedConvertedPdfUrls: Record<number, string> = {};
 
-    // tradeData에서 doc_ids 및 업로드 정보 복원
+    // tradeData에서 doc_ids, doc_mode, 업로드 정보 복원
     doc.tradeData?.documents?.forEach((d: any) => {
       docIds[d.doc_type] = d.doc_id;
+      const step = docTypeToStep(d.doc_type);
+
+      // doc_mode 복원 (upload, skip, manual 모두)
+      if (d.doc_mode) {
+        content.stepModes = { ...content.stepModes, [step]: d.doc_mode };
+      }
+
+      // 업로드 정보 복원 (upload 모드인 경우)
       if (d.upload_status === 'ready' && d.original_filename) {
-        const step = docTypeToStep(d.doc_type);
-        content.stepModes = { ...content.stepModes, [step]: 'upload' };
         content.uploadedFileNames = { ...content.uploadedFileNames, [step]: d.original_filename };
         if (d.s3_url) uploadedFileUrls[step] = d.s3_url;
         if (d.converted_pdf_url) uploadedConvertedPdfUrls[step] = d.converted_pdf_url;
@@ -309,6 +315,11 @@ function App() {
           trade.documents.forEach((doc: any) => {
             const step = docTypeToStep(doc.doc_type);
 
+            // 0. 백엔드 doc_mode에서 stepModes 복원 (upload, skip, manual)
+            if (doc.doc_mode) {
+              content.stepModes = { ...(content.stepModes || {}), [step]: doc.doc_mode };
+            }
+
             // 1. Restore content from latest_version if available
             if (doc.latest_version && doc.latest_version.content) {
               const latestContent = doc.latest_version.content;
@@ -324,10 +335,6 @@ function App() {
               // title 복원
               if (latestContent.title && !content.title) {
                 content.title = latestContent.title;
-              }
-              // stepModes 복원
-              if (latestContent.stepModes && !content.stepModes) {
-                content.stepModes = latestContent.stepModes;
               }
             }
 
