@@ -31,13 +31,24 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess, department
     e.preventDefault();
     setError('');
 
-    // 유효성 검사
+    // 유효성 검사 (백엔드 모델 제약조건과 동기화)
+    const EMP_NO_MAX_LENGTH = 50;
+    const NAME_MAX_LENGTH = 100;
+
     if (!empNo.trim()) {
       setError('사원번호를 입력해주세요.');
       return;
     }
+    if (empNo.trim().length > EMP_NO_MAX_LENGTH) {
+      setError(`사원번호는 ${EMP_NO_MAX_LENGTH}자 이하로 입력해주세요.`);
+      return;
+    }
     if (!name.trim()) {
       setError('이름을 입력해주세요.');
+      return;
+    }
+    if (name.trim().length > NAME_MAX_LENGTH) {
+      setError(`이름은 ${NAME_MAX_LENGTH}자 이하로 입력해주세요.`);
       return;
     }
 
@@ -94,9 +105,13 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess, department
               value={empNo}
               onChange={(e) => setEmpNo(e.target.value)}
               placeholder="사원번호를 입력하세요"
+              maxLength={50}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isLoading}
             />
+            <div className="mt-1 text-right text-xs text-gray-400">
+              {empNo.length}/50
+            </div>
           </div>
 
           {/* Name */}
@@ -109,9 +124,13 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess, department
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="이름을 입력하세요"
+              maxLength={100}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isLoading}
             />
+            <div className="mt-1 text-right text-xs text-gray-400">
+              {name.length}/100
+            </div>
           </div>
 
           {/* Department */}

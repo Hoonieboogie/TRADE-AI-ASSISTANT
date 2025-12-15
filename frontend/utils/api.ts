@@ -153,7 +153,29 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      const errorMessage = error.detail || error.error || `Request failed: ${response.status}`;
+      // Django REST Framework 필드별 에러 파싱
+      // 형식: { "field_name": ["error message 1", "error message 2"], ... }
+      let errorMessage = '';
+      if (error.detail) {
+        errorMessage = error.detail;
+      } else if (error.error) {
+        errorMessage = error.error;
+      } else if (typeof error === 'object' && Object.keys(error).length > 0) {
+        // 필드별 에러 메시지 추출
+        const fieldErrors: string[] = [];
+        for (const [field, messages] of Object.entries(error)) {
+          if (Array.isArray(messages)) {
+            fieldErrors.push(`${field}: ${messages.join(', ')}`);
+          } else if (typeof messages === 'string') {
+            fieldErrors.push(`${field}: ${messages}`);
+          }
+        }
+        errorMessage = fieldErrors.length > 0
+          ? fieldErrors.join('\n')
+          : `Request failed: ${response.status}`;
+      } else {
+        errorMessage = `Request failed: ${response.status}`;
+      }
       if (isDev) {
         console.error(`[API] Error: ${errorMessage}`);
       }
