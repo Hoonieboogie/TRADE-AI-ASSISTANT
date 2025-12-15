@@ -166,6 +166,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setGenChatId(null);
     setMessages([]);
     setCurrentToolStatus(null);  // tool 상태 초기화
+    setIsLoading(false);  // 메인으로 돌아가도 다음 채팅에서 즉시 입력 가능하도록
     onLogoClick(logoRect);
   };
 
