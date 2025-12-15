@@ -865,9 +865,11 @@ export default function DocumentCreationPage({
       const documentsToSync = [1, 2, 3, 4, 5].filter(key => key !== currentDocKey);
 
       documentsToSync.forEach(step => {
-        // Get existing content - 콘텐츠가 없는 step은 건너뜀 (버전 복원으로 undefined인 경우 등)
-        const content = prev[step];
-        if (!content) return;
+        // Get existing content or hydrate template
+        let content = prev[step];
+        if (!content) {
+          content = hydrateTemplate(getTemplateForStep(step));
+        }
 
         const updatedContent = addRowToDocument(content, fieldIds, `Step ${step}`);
         newData[step] = updatedContent;
@@ -946,9 +948,11 @@ export default function DocumentCreationPage({
       const documentsToSync = [1, 2, 3, 4, 5].filter(key => key !== currentDocKey);
 
       documentsToSync.forEach(step => {
-        // Get existing content - 콘텐츠가 없는 step은 건너뜀 (버전 복원으로 undefined인 경우 등)
-        const content = prev[step];
-        if (!content) return;
+        // Get existing content or hydrate template
+        let content = prev[step];
+        if (!content) {
+          content = hydrateTemplate(getTemplateForStep(step));
+        }
 
         newData[step] = deleteRowFromDocument(content, fieldIds, `Step ${step}`);
       });
@@ -956,7 +960,7 @@ export default function DocumentCreationPage({
       return newData;
     });
 
-  }, [currentStep, activeShippingDoc, setDocumentData]);
+  }, [currentStep, activeShippingDoc, hydrateTemplate, setDocumentData]);
 
   const handleShippingDocChange = (doc: ShippingDocType) => {
     // Shipping doc 변경 시 에디터 초기화로 인한 onChange 무시하기 위해 플래그 설정
