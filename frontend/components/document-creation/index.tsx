@@ -974,30 +974,24 @@ export default function DocumentCreationPage({
   };
 
   const handleModeSelect = async (mode: StepMode) => {
-    // Create Trade if it doesn't exist yet (first mode selection)
-    if (onCreateTrade) {
-      await onCreateTrade();
-    }
+    const result = onCreateTrade ? await onCreateTrade() : null;
+    const docIds = result?.docIds || null;
 
-    // 프론트엔드 상태 업데이트 (useEffect에서 documentData에 자동 동기화됨)
     setStepModes(prev => ({ ...prev, [currentStep]: mode }));
-
-    // 템플릿 로드는 변경사항으로 간주하지 않음
     setIsDirty(false);
 
-    // 백엔드 doc_mode 업데이트
-    const docId = getDocId?.(currentStep, null);
+    const stepToDocType: Record<number, string> = { 1: 'offer', 2: 'pi', 3: 'contract', 4: 'ci', 5: 'pl' };
+    const docId = docIds?.[stepToDocType[currentStep]] ?? getDocId?.(currentStep, null);
+
     if (docId && mode) {
       try {
-        const DJANGO_API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
-        await fetch(`${DJANGO_API_URL}/api/documents/documents/${docId}/`, {
+        const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
+        await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ doc_mode: mode })
         });
-      } catch (error) {
-        // doc_mode 업데이트 실패 시 무시
-      }
+      } catch { /* ignore */ }
     }
   };
 
@@ -1136,9 +1130,11 @@ export default function DocumentCreationPage({
       const documentsToSync = [1, 2, 3, 4, 5].filter(key => key !== currentDocKey);
 
       documentsToSync.forEach(step => {
-        // Get existing content - 콘텐츠가 없는 step은 건너뜀 (버전 복원으로 undefined인 경우 등)
-        const content = prev[step];
-        if (!content) return;
+        // Get existing content or hydrate template
+        let content = prev[step];
+        if (!content) {
+          content = hydrateTemplate(getTemplateForStep(step));
+        }
 
         const updatedContent = addRowToDocument(content, fieldIds, `Step ${step}`);
         newData[step] = updatedContent;
@@ -1217,9 +1213,11 @@ export default function DocumentCreationPage({
       const documentsToSync = [1, 2, 3, 4, 5].filter(key => key !== currentDocKey);
 
       documentsToSync.forEach(step => {
-        // Get existing content - 콘텐츠가 없는 step은 건너뜀 (버전 복원으로 undefined인 경우 등)
-        const content = prev[step];
-        if (!content) return;
+        // Get existing content or hydrate template
+        let content = prev[step];
+        if (!content) {
+          content = hydrateTemplate(getTemplateForStep(step));
+        }
 
         newData[step] = deleteRowFromDocument(content, fieldIds, `Step ${step}`);
       });
@@ -1227,7 +1225,7 @@ export default function DocumentCreationPage({
       return newData;
     });
 
-  }, [currentStep, activeShippingDoc, setDocumentData]);
+  }, [currentStep, activeShippingDoc, hydrateTemplate, setDocumentData]);
 
   const handleShippingDocChange = (doc: ShippingDocType) => {
     // Shipping doc 변경 시 에디터 초기화로 인한 onChange 무시하기 위해 플래그 설정

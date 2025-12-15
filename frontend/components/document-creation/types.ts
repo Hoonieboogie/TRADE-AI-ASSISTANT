@@ -22,7 +22,7 @@ export interface DocumentCreationPageProps {
   userEmployeeId: string;
   onLogout: () => void;
   onSave: (data: DocumentData, step: number, activeShippingDoc?: ShippingDocType | null, isCompleted?: boolean) => void;
-  onCreateTrade?: () => Promise<string | null>;
+  onCreateTrade?: () => Promise<{ tradeId: string; docIds: Record<string, number> } | null>;
   onExit?: (hasChanges: boolean) => Promise<void>;
   versions?: Version[];
   onRestore?: (version: Version) => void;
