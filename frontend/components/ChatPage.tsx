@@ -222,6 +222,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
       setGenChatId(null);
       setMessages([]);
       setCurrentToolStatus(null);  // tool 상태 초기화
+      setIsLoading(false);  // 삭제 후 즉시 입력 가능하도록 로딩 상태 초기화
     }
   };
 
