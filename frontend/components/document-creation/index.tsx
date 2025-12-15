@@ -1601,7 +1601,10 @@ export default function DocumentCreationPage({
         isDirty={isDirty}
         versions={versions}
         currentStep={currentStep}
-        onTitleChange={(title) => setDocumentData({ ...documentData, title })}
+        onTitleChange={(title) => {
+          setDocumentData({ ...documentData, title });
+          setIsDirty(true);
+        }}
         onBackClick={() => {
           if (isDirty) setShowExitConfirm(true);
           else handleExit();
