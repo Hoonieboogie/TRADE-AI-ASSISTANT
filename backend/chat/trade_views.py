@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import re
+from asgiref.sync import sync_to_async
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -740,7 +741,7 @@ class DocumentChatStreamView(View):
     }
     """
 
-    def post(self, request):
+    async def post(self, request):
         try:
             data = json.loads(request.body)
             doc_id = data.get('doc_id') or data.get('document_id')
@@ -776,14 +777,14 @@ class DocumentChatStreamView(View):
         response['X-Accel-Buffering'] = 'no'
         return response
 
-    def stream_response(self, doc_id, user_id, message, document_content='', prev_documents=None):
-        """문서 Agent 스트리밍 응답 생성기"""
+    async def stream_response(self, doc_id, user_id, message, document_content='', prev_documents=None):
+        """문서 Agent 스트리밍 응답 생성기 - ASGI async 버전"""
         if prev_documents is None:
             prev_documents = {}
 
         # 1. Document 조회
         try:
-            document = Document.objects.get(doc_id=doc_id)
+            document = await sync_to_async(Document.objects.get)(doc_id=doc_id)
             trade_id = document.trade_id
         except Document.DoesNotExist:
             yield f"data: {json.dumps({'type': 'error', 'error': f'Document를 찾을 수 없습니다: doc_id={doc_id}'})}\n\n"
@@ -793,7 +794,7 @@ class DocumentChatStreamView(View):
         yield f"data: {json.dumps({'type': 'init', 'doc_id': doc_id, 'trade_id': trade_id})}\n\n"
 
         # 2. 사용자 메시지 저장
-        user_msg = DocMessage.objects.create(
+        user_msg = await sync_to_async(DocMessage.objects.create)(
             doc=document,
             role='user',
             content=message
@@ -801,12 +802,16 @@ class DocumentChatStreamView(View):
         logger.info(f"스트리밍: DocMessage 저장: doc_message_id={user_msg.doc_message_id}")
 
         # 3. 이전 대화 히스토리 로드
-        prev_messages = DocMessage.objects.filter(doc=document).exclude(
-            doc_message_id=user_msg.doc_message_id
-        ).order_by('created_at')
-        message_count = prev_messages.count()
-        start_index = max(0, message_count - 10)
-        recent_messages = list(prev_messages[start_index:])
+        @sync_to_async
+        def get_prev_messages():
+            prev_msgs = DocMessage.objects.filter(doc=document).exclude(
+                doc_message_id=user_msg.doc_message_id
+            ).order_by('created_at')
+            msg_count = prev_msgs.count()
+            start_idx = max(0, msg_count - 10)
+            return list(prev_msgs[start_idx:]), msg_count
+
+        recent_messages, message_count = await get_prev_messages()
 
         # role 변환: DB의 'agent' → OpenAI API의 'assistant'
         message_history = [
@@ -816,15 +821,15 @@ class DocumentChatStreamView(View):
         logger.info(f"스트리밍: 대화 히스토리 로드: {len(message_history)}개 메시지")
 
         # 4. Mem0 컨텍스트 로드 (새 구조: 단기 + 장기 분리)
-        mem_service = get_memory_service()
+        mem_service = await sync_to_async(get_memory_service)()
         context = {}
 
         # user_id를 정수로 변환 (emp_no가 들어올 수도 있음)
-        user = get_user_by_id_or_emp_no(user_id)
+        user = await sync_to_async(get_user_by_id_or_emp_no)(user_id)
         numeric_user_id = user.user_id if user else None
 
         if mem_service:
-            context = mem_service.build_doc_context(
+            context = await sync_to_async(mem_service.build_doc_context)(
                 doc_id=doc_id,
                 query=message
             )
@@ -833,18 +838,22 @@ class DocumentChatStreamView(View):
             yield f"data: {json.dumps({'type': 'context', 'summary': context['context_summary']})}\n\n"
 
         # 5. doc_mode에 따라 적절한 Agent 선택
-        if document.doc_mode == 'upload' and document.upload_status == 'ready':
-            # 업로드 모드: Document Reader Assistant (문서 내용 검색/질의 전용)
+        doc_mode = await sync_to_async(lambda: document.doc_mode)()
+        upload_status = await sync_to_async(lambda: document.upload_status)()
+        original_filename = await sync_to_async(lambda: document.original_filename)()
+        doc_type_display_val = await sync_to_async(document.get_doc_type_display)()
+        extracted_text = await sync_to_async(lambda: document.extracted_text)()
+
+        if doc_mode == 'upload' and upload_status == 'ready':
             agent = get_read_document_agent(
                 document_id=document.doc_id,
-                document_name=document.original_filename or f"문서_{document.doc_id}",
-                document_type=document.get_doc_type_display(),
+                document_name=original_filename or f"문서_{document.doc_id}",
+                document_type=doc_type_display_val,
                 prompt_version=PROMPT_VERSION,
                 prompt_label=PROMPT_LABEL
             )
-            logger.info(f"📄 업로드 모드: Document Reader Assistant 사용 (doc_id={doc_id}, filename={document.original_filename})")
+            logger.info(f"📄 업로드 모드: Document Reader Assistant 사용 (doc_id={doc_id}, filename={original_filename})")
         else:
-            # 수동 작성 모드: Document Writing Assistant (문서 편집/작성 지원)
             agent = get_document_writing_agent(
                 document_content=document_content,
                 prompt_version=PROMPT_VERSION,
@@ -856,7 +865,7 @@ class DocumentChatStreamView(View):
         agent_info = {
             'name': agent.name,
             'model': agent.model,
-            'doc_mode': document.doc_mode,
+            'doc_mode': doc_mode,
             'tools': [tool.__name__ if hasattr(tool, '__name__') else str(tool) for tool in agent.tools]
         }
         yield f"data: {json.dumps({'type': 'agent_info', 'agent': agent_info})}\n\n"
@@ -866,33 +875,25 @@ class DocumentChatStreamView(View):
         context_parts = []
 
         # 현재 문서 내용 컨텍스트 추가
-        # 1. 직접 작성 모드: 프론트엔드에서 전달된 document_content 사용
-        # 2. 업로드 모드: DB의 extracted_text 사용
         current_doc_text = None
         current_doc_mode_label = ""
+        doc_type = await sync_to_async(lambda: document.doc_type)()
 
         if document_content and document_content.strip():
-            # 직접 작성 모드: 에디터 내용 사용
             current_doc_text = re.sub(r'<[^>]+>', ' ', document_content)
             current_doc_text = re.sub(r'\s+', ' ', current_doc_text).strip()
             current_doc_mode_label = "(직접작성)"
-        elif document.doc_mode == 'upload' and document.extracted_text:
-            # 업로드 모드: DB의 extracted_text 사용
-            current_doc_text = document.extracted_text.strip()
+        elif doc_mode == 'upload' and extracted_text:
+            current_doc_text = extracted_text.strip()
             current_doc_mode_label = "(업로드)"
             logger.info(f"📄 현재 문서 업로드 모드: extracted_text 사용, {len(current_doc_text)}자")
 
         if current_doc_text:
-            context_parts.append(f"[현재 {document.doc_type} 문서 내용 {current_doc_mode_label}]\n{current_doc_text[:2000]}")
+            context_parts.append(f"[현재 {doc_type} 문서 내용 {current_doc_mode_label}]\n{current_doc_text[:2000]}")
             logger.info(f"✅ 현재 문서 내용 {len(current_doc_text)}자 컨텍스트에 추가 {current_doc_mode_label}")
 
         # 이전 step 문서 내용 참조
-        # 1. 프론트엔드에서 전달된 prev_documents 우선 사용 (직접 작성 문서)
-        # 2. 업로드 문서는 DB의 extracted_text 조회
-        # prev_documents: { "offer": { "type": "manual"|"upload", "content": "..." }, ... }
         prev_doc_contents = []
-
-        # 문서 타입 표시명 매핑
         doc_type_display = {
             'offer': 'Offer Sheet',
             'pi': 'Proforma Invoice',
@@ -903,56 +904,60 @@ class DocumentChatStreamView(View):
 
         # 이전 문서 조회 (현재 문서 제외)
         try:
-            sibling_docs = Document.objects.filter(trade_id=trade_id).exclude(doc_id=doc_id)
-            processed_doc_types = set()  # 이미 처리된 문서 타입 추적
+            @sync_to_async
+            def get_sibling_docs_info():
+                sibling_docs = list(Document.objects.filter(trade_id=trade_id).exclude(doc_id=doc_id))
+                results = []
+                for sibling_doc in sibling_docs:
+                    latest_ver = DocVersion.objects.filter(doc=sibling_doc).order_by('-created_at').first()
+                    results.append({
+                        'doc_type': sibling_doc.doc_type,
+                        'doc_mode': sibling_doc.doc_mode,
+                        'extracted_text': sibling_doc.extracted_text,
+                        'latest_version_content': latest_ver.content if latest_ver else None
+                    })
+                return results
 
-            for sibling_doc in sibling_docs:
-                doc_type = sibling_doc.doc_type
-                display_name = doc_type_display.get(doc_type, doc_type)
+            sibling_docs_info = await get_sibling_docs_info()
+            processed_doc_types = set()
+
+            for sibling_info in sibling_docs_info:
+                sib_doc_type = sibling_info['doc_type']
+                display_name = doc_type_display.get(sib_doc_type, sib_doc_type)
                 text_content = None
                 mode_label = ""
 
-                # 1. 프론트엔드에서 전달된 데이터 확인 (직접 작성 문서)
-                if prev_documents and doc_type in prev_documents:
-                    doc_info = prev_documents[doc_type]
+                # 1. 프론트엔드에서 전달된 데이터 확인
+                if prev_documents and sib_doc_type in prev_documents:
+                    doc_info = prev_documents[sib_doc_type]
                     if doc_info:
                         content = doc_info.get('content', '')
                         mode = doc_info.get('type', 'manual')
-
                         if content and content.strip():
-                            # HTML 태그 제거하여 순수 텍스트 추출
                             text_content = re.sub(r'<[^>]+>', ' ', content)
                             text_content = re.sub(r'\s+', ' ', text_content).strip()
                             mode_label = "(업로드)" if mode == 'upload' else "(직접작성)"
 
                 # 2. 프론트엔드 데이터가 없으면 DB에서 조회
                 if not text_content:
-                    # 업로드 문서: extracted_text 사용
-                    if sibling_doc.doc_mode == 'upload' and sibling_doc.extracted_text:
-                        text_content = sibling_doc.extracted_text.strip()
+                    if sibling_info['doc_mode'] == 'upload' and sibling_info['extracted_text']:
+                        text_content = sibling_info['extracted_text'].strip()
                         mode_label = "(업로드)"
-                        logger.info(f"📄 업로드 문서 extracted_text 사용: {doc_type}, {len(text_content)}자")
+                    elif sibling_info['doc_mode'] == 'manual' and sibling_info['latest_version_content']:
+                        content_data = sibling_info['latest_version_content']
+                        html_content = ''
+                        if isinstance(content_data, dict):
+                            html_content = content_data.get('html', '') or content_data.get('html_content', '')
+                        else:
+                            html_content = str(content_data)
+                        if html_content and html_content.strip():
+                            text_content = re.sub(r'<[^>]+>', ' ', html_content)
+                            text_content = re.sub(r'\s+', ' ', text_content).strip()
+                            mode_label = "(직접작성)"
 
-                    # 직접 작성 문서: DocVersion에서 조회
-                    elif sibling_doc.doc_mode == 'manual':
-                        latest_version = DocVersion.objects.filter(doc=sibling_doc).order_by('-created_at').first()
-                        if latest_version and latest_version.content:
-                            content_data = latest_version.content
-                            html_content = ''
-                            if isinstance(content_data, dict):
-                                html_content = content_data.get('html', '') or content_data.get('html_content', '')
-                            else:
-                                html_content = str(content_data)
-
-                            if html_content and html_content.strip():
-                                text_content = re.sub(r'<[^>]+>', ' ', html_content)
-                                text_content = re.sub(r'\s+', ' ', text_content).strip()
-                                mode_label = "(직접작성)"
-
-                # 컨텍스트에 추가
-                if text_content and doc_type not in processed_doc_types:
+                if text_content and sib_doc_type not in processed_doc_types:
                     prev_doc_contents.append(f"  [{display_name} {mode_label}]\n{text_content[:1500]}")
-                    processed_doc_types.add(doc_type)
+                    processed_doc_types.add(sib_doc_type)
 
             if prev_doc_contents:
                 context_parts.append(f"[이전 step 문서 내용 - 참조용]\n" + "\n\n".join(prev_doc_contents))
@@ -961,7 +966,7 @@ class DocumentChatStreamView(View):
         except Exception as e:
             logger.error(f"이전 문서 조회 오류: {e}")
 
-        # Mem0 컨텍스트 추가 (단기: 상세, 장기: 요약)
+        # Mem0 컨텍스트 추가
         if context.get('short_memories'):
             short_mem_texts = [m.get('memory', str(m)) for m in context['short_memories']]
             context_parts.append(f"[이전 대화 상세]\n" + "\n".join(f"- {t}" for t in short_mem_texts))
@@ -990,95 +995,62 @@ class DocumentChatStreamView(View):
         logger.info(f"스트리밍: Agent input 준비 완료: {len(input_items)}개 메시지")
 
         # 6. 스트리밍 실행
-        async def run_stream():
-            tools_used = []
-            seen_tools = set()
-            full_response = ""
-
-            try:
-                result = Runner.run_streamed(agent, input=final_input)
-
-                async for event in result.stream_events():
-                    # 텍스트 스트리밍 이벤트
-                    if event.type == "raw_response_event":
-                        data = event.data
-                        if hasattr(data, 'type') and data.type == 'response.output_text.delta':
-                            if hasattr(data, 'delta') and data.delta:
-                                full_response += data.delta
-                                yield ('text', data.delta)
-
-                    # 툴 호출 이벤트
-                    elif event.type == "run_item_stream_event":
-                        item = event.item
-                        if isinstance(item, ToolCallItem):
-                            tool_name = None
-                            try:
-                                tool_name = item.raw_item.name
-                            except AttributeError:
-                                pass
-
-                            if not tool_name:
-                                try:
-                                    tool_name = item.name
-                                except AttributeError:
-                                    pass
-
-                            if not tool_name:
-                                try:
-                                    tool_name = item.tool_call.function.name
-                                except AttributeError:
-                                    pass
-
-                            logger.info(f"Tool detected: {tool_name}")
-
-                            if tool_name and tool_name not in seen_tools:
-                                seen_tools.add(tool_name)
-                                tool_info = TOOL_DISPLAY_INFO.get(tool_name, {
-                                    'name': tool_name,
-                                    'icon': 'tool',
-                                    'description': f'{tool_name} 도구를 사용했습니다.'
-                                })
-                                tool_data = {'id': tool_name, **tool_info}
-                                tools_used.append(tool_data)
-                                logger.info(f"Tool info sent: {tool_data}")
-                                yield ('tool', tool_data)
-
-                yield ('done', {'full_response': full_response, 'tools_used': tools_used})
-
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                yield ('error', str(e))
-
-        # 비동기 실행
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
         tools_used = []
+        seen_tools = set()
         full_response = ""
 
         try:
-            async_gen = run_stream()
-            while True:
-                try:
-                    event_type, event_data = loop.run_until_complete(async_gen.__anext__())
+            result = Runner.run_streamed(agent, input=final_input)
 
-                    if event_type == 'text':
-                        yield f"data: {json.dumps({'type': 'text', 'content': event_data})}\n\n"
-                    elif event_type == 'tool':
-                        tools_used.append(event_data)
-                        yield f"data: {json.dumps({'type': 'tool', 'tool': event_data})}\n\n"
-                    elif event_type == 'done':
-                        full_response = event_data['full_response']
-                        tools_used = event_data['tools_used']
-                        yield f"data: {json.dumps({'type': 'done', 'tools_used': tools_used})}\n\n"
-                    elif event_type == 'error':
-                        yield f"data: {json.dumps({'type': 'error', 'error': event_data})}\n\n"
+            async for event in result.stream_events():
+                if event.type == "raw_response_event":
+                    data = event.data
+                    if hasattr(data, 'type') and data.type == 'response.output_text.delta':
+                        if hasattr(data, 'delta') and data.delta:
+                            full_response += data.delta
+                            yield f"data: {json.dumps({'type': 'text', 'content': data.delta})}\n\n"
 
-                except StopAsyncIteration:
-                    break
-        finally:
-            loop.close()
+                elif event.type == "run_item_stream_event":
+                    item = event.item
+                    if isinstance(item, ToolCallItem):
+                        tool_name = None
+                        try:
+                            tool_name = item.raw_item.name
+                        except AttributeError:
+                            pass
+                        if not tool_name:
+                            try:
+                                tool_name = item.name
+                            except AttributeError:
+                                pass
+                        if not tool_name:
+                            try:
+                                tool_name = item.tool_call.function.name
+                            except AttributeError:
+                                pass
+
+                        logger.info(f"Tool detected: {tool_name}")
+
+                        if tool_name and tool_name not in seen_tools:
+                            seen_tools.add(tool_name)
+                            tool_info = TOOL_DISPLAY_INFO.get(tool_name, {
+                                'name': tool_name,
+                                'icon': 'tool',
+                                'description': f'{tool_name} 도구를 사용했습니다.'
+                            })
+                            tool_data = {'id': tool_name, **tool_info}
+                            tools_used.append(tool_data)
+                            logger.info(f"Tool info sent: {tool_data}")
+                            yield f"data: {json.dumps({'type': 'tool', 'tool': tool_data})}\n\n"
+
+            # 완료 이벤트
+            yield f"data: {json.dumps({'type': 'done', 'tools_used': tools_used})}\n\n"
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+            return
 
         # 7. 편집 응답인지 확인 및 처리
         edit_response = None
@@ -1086,12 +1058,11 @@ class DocumentChatStreamView(View):
             edit_response = parse_edit_response(full_response)
             if edit_response:
                 logger.info(f"편집 응답 감지: {len(edit_response.get('changes', []))}개 변경사항")
-                # 편집 응답 전송
                 yield f"data: {json.dumps({'type': 'edit', 'message': edit_response['message'], 'changes': edit_response['changes']})}\n\n"
 
-        # 8. AI 응답 저장 (metadata에 tools_used, changes 포함)
+        # 8. AI 응답 저장
         try:
-            ai_msg = DocMessage.objects.create(
+            await sync_to_async(DocMessage.objects.create)(
                 doc=document,
                 role='agent',
                 content=full_response,
@@ -1102,39 +1073,37 @@ class DocumentChatStreamView(View):
                     'edit_message': edit_response.get('message', '') if edit_response else ''
                 }
             )
-            logger.info(f"스트리밍: DocMessage AI 응답 저장: doc_message_id={ai_msg.doc_message_id}, tools={[t['id'] for t in tools_used]}")
+            logger.info(f"스트리밍: DocMessage AI 응답 저장 완료, tools={[t['id'] for t in tools_used]}")
 
-            # Mem0에 메모리 추가 (단기: 매번, 장기: 10턴마다)
+            # 9. Mem0에 메모리 추가
             if mem_service:
                 messages = [
                     {"role": "user", "content": message},
                     {"role": "assistant", "content": full_response}
                 ]
                 try:
-                    # 단기 메모리 저장 (매번)
-                    mem_service.add_doc_short_memory(
+                    await sync_to_async(mem_service.add_doc_short_memory)(
                         doc_id=doc_id,
                         messages=messages
                     )
 
-                    # 10턴마다 장기 메모리에 요약 저장
-                    total_messages = DocMessage.objects.filter(doc=document).count()
-                    turn_count = total_messages // 2  # 1턴 = user + assistant
+                    @sync_to_async
+                    def get_turn_info():
+                        total = DocMessage.objects.filter(doc=document).count()
+                        turn = total // 2
+                        recent = list(DocMessage.objects.filter(doc=document).order_by('-created_at')[:20])
+                        return turn, recent
+
+                    turn_count, recent_for_summary = await get_turn_info()
 
                     if turn_count > 0 and turn_count % 10 == 0:
-                        # 최근 10턴(20개 메시지)을 가져와서 요약 저장
-                        recent_for_summary = DocMessage.objects.filter(
-                            doc=document
-                        ).order_by('-created_at')[:20]
-
                         summary_messages = [
                             {"role": "assistant" if m.role == "agent" else m.role, "content": m.content}
                             for m in reversed(recent_for_summary)
                         ]
-
                         turn_start = turn_count - 9
                         turn_end = turn_count
-                        mem_service.add_doc_long_memory(
+                        await sync_to_async(mem_service.add_doc_long_memory)(
                             doc_id=doc_id,
                             messages=summary_messages,
                             turn_range=f"{turn_start}-{turn_end}"
