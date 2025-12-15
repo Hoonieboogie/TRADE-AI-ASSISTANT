@@ -17,6 +17,8 @@ interface EditorViewProps {
   onRowAdded?: (fieldIds: string[]) => void;
   onRowDeleted?: (fieldIds: string[]) => void;
   onUpdate?: () => void;
+  highlightedFieldId?: string | null;
+  onFieldEdit?: (fieldId: string) => void;
 }
 
 export default function EditorView({
@@ -33,7 +35,9 @@ export default function EditorView({
   onRowDeleted,
   onUpdate,
   showFieldHighlight,
-  showAgentHighlight
+  showAgentHighlight,
+  highlightedFieldId,
+  onFieldEdit
 }: EditorViewProps & {
   showFieldHighlight: boolean;
   showAgentHighlight: boolean;
@@ -56,6 +60,8 @@ export default function EditorView({
         showAgentHighlight={showAgentHighlight}
         defaultFontFamily={defaultFontFamily}
         defaultFontSize={defaultFontSize}
+        highlightedFieldId={highlightedFieldId}
+        onFieldEdit={onFieldEdit}
       />
     </div>
   );

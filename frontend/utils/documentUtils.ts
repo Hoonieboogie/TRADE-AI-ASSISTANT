@@ -213,3 +213,53 @@ export function getDocKeyForStep(
   }
   return -1;
 }
+
+/**
+ * TipTap 에디터에서 미작성 필드 목록을 반환 (문서 상단 → 하단 순서)
+ * @param rootElement - TipTap 에디터 DOM 요소
+ * @returns 미작성 필드 ID 배열
+ */
+export function findUnfilledFields(rootElement: HTMLElement): string[] {
+  if (!rootElement) return [];
+
+  // TipTap uses ReactNodeViewRenderer which doesn't preserve data-field-id in DOM
+  // Instead, we need to look for .data-field-node elements and check their text content
+  const fieldNodes = rootElement.querySelectorAll('.data-field-node');
+
+  console.log('[findUnfilledFields] Total field nodes found:', fieldNodes.length);
+
+  const unfilledFields: string[] = [];
+
+  fieldNodes.forEach(fieldNode => {
+    const textContent = fieldNode.textContent || '';
+
+    // Check if it's a placeholder format: [field_name]
+    const placeholderMatch = textContent.match(/^\[([^\]]+)\]$/);
+
+    if (placeholderMatch) {
+      const fieldId = placeholderMatch[1];
+
+      console.log(`[findUnfilledFields] Found placeholder field: ${fieldId}`);
+
+      // 선택적 필드(notice) 제외
+      if (!fieldId.startsWith('notice')) {
+        // Check if disabled by looking for disabled class or opacity
+        const isDisabled = fieldNode.classList.contains('cursor-not-allowed') ||
+          fieldNode.classList.contains('opacity-60');
+
+        if (!isDisabled) {
+          unfilledFields.push(fieldId);
+          console.log(`[findUnfilledFields] Added unfilled field: ${fieldId}`);
+        } else {
+          console.log(`[findUnfilledFields] Skipped disabled field: ${fieldId}`);
+        }
+      } else {
+        console.log(`[findUnfilledFields] Skipped notice field: ${fieldId}`);
+      }
+    }
+  });
+
+  console.log('[findUnfilledFields] Total unfilled fields:', unfilledFields);
+
+  return unfilledFields;
+}

@@ -965,6 +965,7 @@ export interface ContractEditorRef {
     insertContent: (content: string) => void
     replaceSelection: (content: string) => void
     applyFieldChanges: (changes: FieldChange[]) => void
+    getEditorElement: () => HTMLElement | null
 }
 
 interface ContractEditorProps {
@@ -978,10 +979,12 @@ interface ContractEditorProps {
     defaultFontFamily?: string
     defaultFontSize?: string
     onUpdate?: () => void
+    highlightedFieldId?: string | null  // Field ID to highlight for unfilled field finder
+    onFieldEdit?: (fieldId: string) => void  // Callback when a field is edited
 }
 
 const ContractEditor = forwardRef<ContractEditorRef, ContractEditorProps>(
-    ({ initialContent, onChange, onUpdate, onRowAdded, onRowDeleted, className, showFieldHighlight = true, showAgentHighlight = true, defaultFontFamily, defaultFontSize }, ref) => {
+    ({ initialContent, onChange, onUpdate, onRowAdded, onRowDeleted, className, showFieldHighlight = true, showAgentHighlight = true, defaultFontFamily, defaultFontSize, highlightedFieldId, onFieldEdit }, ref) => {
         const editor = useEditor({
             extensions: [
                 StarterKit.configure({
@@ -1335,6 +1338,11 @@ const ContractEditor = forwardRef<ContractEditorRef, ContractEditorProps>(
                             tr.setNodeMarkup(sourcePos, undefined, { ...sourceNode.attrs, source: 'user' })
                             modified = true
                         }
+
+                        // Call onFieldEdit callback to remove highlight
+                        if (onFieldEdit) {
+                            onFieldEdit(sourceFieldId);
+                        }
                     }
 
                     // Collect nodes to sync (from current state, accounting for any placeholder restorations)
@@ -1436,6 +1444,9 @@ const ContractEditor = forwardRef<ContractEditorRef, ContractEditorProps>(
                     isSyncing = false
                 }
             },
+            getEditorElement: () => {
+                return editor?.view?.dom || null
+            },
         }))
 
         // Handle keyboard shortcuts
@@ -1523,6 +1534,33 @@ const ContractEditor = forwardRef<ContractEditorRef, ContractEditorProps>(
                 document.removeEventListener('keydown', handleKeyDown)
             }
         }, [handleKeyDown])
+
+        // Apply unfilled field highlighting
+        useEffect(() => {
+            if (!editor) return;
+
+            const editorElement = document.querySelector('.ProseMirror');
+            if (!editorElement) return;
+
+            // Remove previous highlight
+            const previousHighlight = editorElement.querySelector('.unfilled-highlight');
+            if (previousHighlight) {
+                previousHighlight.classList.remove('unfilled-highlight');
+            }
+
+
+            // Apply new highlight
+            if (highlightedFieldId) {
+                // React node views don't have data-field-id, find by text content
+                const allFields = editorElement.querySelectorAll('.data-field-node');
+                for (const field of Array.from(allFields)) {
+                    if (field.textContent === `[${highlightedFieldId}]`) {
+                        field.classList.add('unfilled-highlight');
+                        break;
+                    }
+                }
+            }
+        }, [editor, highlightedFieldId])
 
         if (!editor) {
             return (

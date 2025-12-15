@@ -203,6 +203,29 @@
     border-color: transparent !important;
 }
 
+/* Unfilled field highlight - for field finder feature */
+.contract-editor .ProseMirror .data-field-node.unfilled-highlight {
+    border: 2px solid #ef4444 !important;
+    background-color: #fee2e2 !important;
+    padding: 2px 4px;
+    border-radius: 4px;
+    animation: pulse-red 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+    }
+}
+
 /* Print styles */
 @media print {
     .contract-editor .ProseMirror {

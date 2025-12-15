@@ -1,6 +1,6 @@
 // DocumentCreationPage - 메인 컴포넌트
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Sparkles, Paperclip, MinusCircle, Check, Lock, Plus, ChevronUp, ChevronDown, Ban, PenTool, ArrowLeft, FileText, Package, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Paperclip, MinusCircle, Check, Lock, Plus, ChevronUp, ChevronDown, Ban, PenTool, ArrowLeft, FileText, Package, Eye, EyeOff, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -51,7 +51,7 @@ import { saleContractTemplateHTML } from '../../templates/saleContract';
 import { commercialInvoiceTemplateHTML } from '../../templates/commercialInvoice';
 
 // Utils
-import { checkStepCompletion, extractDataFromContent, updateContentWithSharedData as applySharedData } from '../../utils/documentUtils';
+import { checkStepCompletion, extractDataFromContent, updateContentWithSharedData as applySharedData, findUnfilledFields } from '../../utils/documentUtils';
 import { DocumentData } from '../../App';
 
 
@@ -450,6 +450,11 @@ export default function DocumentCreationPage({
   const [showAgentHighlight, setShowAgentHighlight] = useState(true);
   const [editorKey, setEditorKey] = useState(0); // 에디터 강제 리마운트용
 
+  // Unfilled Field Finder State
+  const [unfilledFields, setUnfilledFields] = useState<string[]>([]);
+  const [currentUnfilledIndex, setCurrentUnfilledIndex] = useState<number>(-1);
+  const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(null);
+
 
   // Modal State
   const [showMyPageModal, setShowMyPageModal] = useState(false);
@@ -812,6 +817,80 @@ export default function DocumentCreationPage({
       }
     }
     setShowDownloadModal(true);
+  };
+
+  const scrollToField = (fieldId: string) => {
+    console.log('[scrollToField] Looking for field:', fieldId);
+    if (!editorRef.current) {
+      console.log('[scrollToField] No editor ref');
+      return;
+    }
+
+    // 에디터 DOM에서 해당 필드 찾기
+    const editorElement = document.querySelector('.ProseMirror');
+    if (!editorElement) {
+      console.log('[scrollToField] No ProseMirror element');
+      return;
+    }
+
+    // React node views don't have data-field-id, so find by text content
+    const allFields = editorElement.querySelectorAll('.data-field-node');
+    console.log('[scrollToField] Total fields in editor:', allFields.length);
+
+    let targetField: Element | null = null;
+
+    for (const field of Array.from(allFields)) {
+      console.log('[scrollToField] Checking field:', field.textContent);
+      if (field.textContent === `[${fieldId}]`) {
+        targetField = field;
+        console.log('[scrollToField] Found target field!');
+        break;
+      }
+    }
+
+    if (targetField) {
+      console.log('[scrollToField] Scrolling to field');
+      targetField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      console.log('[scrollToField] Target field not found');
+    }
+  };
+
+  const handleFindUnfilledFields = () => {
+    // 현재 에디터 DOM 가져오기
+    if (!editorRef.current) return;
+
+    const editorElement = editorRef.current.getEditorElement();
+    if (!editorElement) return;
+
+    const unfilled = findUnfilledFields(editorElement);
+
+    if (unfilled.length === 0) {
+      // 모든 필드 작성 완료
+      alert('현재 문서의 필수 항목이 모두 작성되었습니다.');
+      setUnfilledFields([]);
+      setCurrentUnfilledIndex(-1);
+      setHighlightedFieldId(null);
+      return;
+    }
+
+    // 첫 번째 또는 다음 미작성 필드로 이동
+    let nextIndex = 0;
+    if (unfilledFields.length > 0 && currentUnfilledIndex >= 0) {
+      nextIndex = (currentUnfilledIndex + 1) % unfilled.length;
+
+      // 마지막 항목 도달 시
+      if (nextIndex === 0 && currentUnfilledIndex === unfilled.length - 1) {
+        alert('마지막 미작성 항목입니다. 처음부터 다시 시작합니다.');
+      }
+    }
+
+    setUnfilledFields(unfilled);
+    setCurrentUnfilledIndex(nextIndex);
+    setHighlightedFieldId(unfilled[nextIndex]);
+
+    // 에디터에서 해당 필드로 스크롤
+    scrollToField(unfilled[nextIndex]);
   };
 
   const handleExit = async () => {
@@ -1552,6 +1631,16 @@ export default function DocumentCreationPage({
 
     const rightContent = shouldShowToggles ? (
       <div className="flex items-center gap-2">
+        {/* Unfilled Field Finder Button */}
+        <button
+          onClick={handleFindUnfilledFields}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors bg-red-50 text-red-600 hover:bg-red-100"
+          title="미작성 필드 찾기"
+        >
+          <Search className="w-4 h-4" />
+          <span>미작성 항목 찾기</span>
+        </button>
+
         {/* Common Field Highlight Toggle */}
         <button
           onClick={() => setShowFieldHighlight(prev => !prev)}
@@ -1681,6 +1770,13 @@ export default function DocumentCreationPage({
         onRowDeleted={handleRowDeleted}
         showFieldHighlight={showFieldHighlight}
         showAgentHighlight={showAgentHighlight}
+        highlightedFieldId={highlightedFieldId}
+        onFieldEdit={(fieldId) => {
+          // Remove highlight when user edits the field
+          if (fieldId === highlightedFieldId) {
+            setHighlightedFieldId(null);
+          }
+        }}
       />
     );
   };
