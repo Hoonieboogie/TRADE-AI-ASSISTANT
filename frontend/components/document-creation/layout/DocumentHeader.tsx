@@ -69,6 +69,7 @@ export default function DocumentHeader({
                 onBlur={handleTitleSave}
                 onKeyDown={handleTitleKeyDown}
                 placeholder="제목을 입력하세요. (예: USA-Fashion-20251126)"
+                maxLength={60}
                 className="text-gray-900 font-bold border-b-2 border-blue-500 outline-none focus:border-blue-600 bg-transparent w-80 py-1"
                 autoFocus
               />
