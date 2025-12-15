@@ -181,6 +181,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setGenChatId(targetChatId);
     setMessages([]);  // 메시지 즉시 초기화
     setCurrentToolStatus(null);  // tool 상태 초기화 (이전 채팅의 상태 표시 방지)
+    setIsLoading(false);  // 새 채팅방에서 즉시 입력 가능하도록 로딩 상태 초기화
 
     // 3. 메시지 로드
     const loadedMessages = await loadMessages(targetChatId);
