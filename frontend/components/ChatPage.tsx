@@ -166,6 +166,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setGenChatId(null);
     setMessages([]);
     setCurrentToolStatus(null);  // tool 상태 초기화
+    setIsLoading(false);  // 메인으로 돌아가도 다음 채팅에서 즉시 입력 가능하도록
     onLogoClick(logoRect);
   };
 
@@ -181,6 +182,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setGenChatId(targetChatId);
     setMessages([]);  // 메시지 즉시 초기화
     setCurrentToolStatus(null);  // tool 상태 초기화 (이전 채팅의 상태 표시 방지)
+    setIsLoading(false);  // 새 채팅방에서 즉시 입력 가능하도록 로딩 상태 초기화
 
     // 3. 메시지 로드
     const loadedMessages = await loadMessages(targetChatId);
@@ -209,6 +211,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setGenChatId(null);
     setMessages([]);
     setCurrentToolStatus(null);  // tool 상태 초기화
+    setIsLoading(false);  // 새 채팅에서 즉시 입력 가능하도록 로딩 상태 초기화
   };
 
   // 채팅 삭제 후 콜백 (현재 보고 있는 채팅이면 초기화)
@@ -220,6 +223,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
       setGenChatId(null);
       setMessages([]);
       setCurrentToolStatus(null);  // tool 상태 초기화
+      setIsLoading(false);  // 삭제 후 즉시 입력 가능하도록 로딩 상태 초기화
     }
   };
 

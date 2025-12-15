@@ -1,7 +1,7 @@
-import asyncio
 import json
 import re
 import logging
+from asgiref.sync import sync_to_async
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets
@@ -253,7 +253,7 @@ class ChatStreamView(View):
     문서가 있으면 document_writing_agent 사용 (수정 기능 포함)
     """
 
-    def post(self, request):
+    async def post(self, request):
         try:
             data = json.loads(request.body)
             message = data.get('message')
@@ -280,9 +280,9 @@ class ChatStreamView(View):
         response['X-Accel-Buffering'] = 'no'
         return response
 
-    def stream_response(self, message: str, document: str, user_id=None, gen_chat_id=None):
+    async def stream_response(self, message: str, document: str, user_id=None, gen_chat_id=None):
         """
-        Agent 스트리밍 응답 생성기 (Mem0 메모리 통합)
+        Agent 스트리밍 응답 생성기 (Mem0 메모리 통합) - ASGI async 버전
         """
         # 1. 사용자 및 채팅 세션 관리
         user = None
@@ -291,29 +291,26 @@ class ChatStreamView(View):
         is_first_message = False
 
         if user_id:
-            user = get_or_create_user(user_id)
+            user = await sync_to_async(get_or_create_user)(user_id)
             if user:
                 # 기존 채팅 세션 조회 또는 새로 생성
                 if gen_chat_id:
                     try:
-                        # gen_chat_id만으로 조회 (user 필터 제거 - 이미 프론트에서 관리)
-                        gen_chat = GenChat.objects.get(gen_chat_id=gen_chat_id)
+                        gen_chat = await sync_to_async(GenChat.objects.get)(gen_chat_id=gen_chat_id)
                         logger.info(f"✅ 기존 GenChat 조회 성공: gen_chat_id={gen_chat_id}")
                     except GenChat.DoesNotExist:
                         logger.warning(f"⚠️ GenChat 조회 실패, 새로 생성: gen_chat_id={gen_chat_id}")
-                        # 첫 메시지 기반 제목 설정 (30자 제한)
                         initial_title = message[:30] + "..." if len(message) > 30 else message
-                        gen_chat = GenChat.objects.create(user=user, title=initial_title)
+                        gen_chat = await sync_to_async(GenChat.objects.create)(user=user, title=initial_title)
                         is_first_message = True
                 else:
-                    # gen_chat_id가 없으면 새 채팅방 생성 (첫 메시지 기반 제목)
                     initial_title = message[:30] + "..." if len(message) > 30 else message
-                    gen_chat = GenChat.objects.create(user=user, title=initial_title)
+                    gen_chat = await sync_to_async(GenChat.objects.create)(user=user, title=initial_title)
                     is_first_message = True
                     logger.info(f"✅ 새 GenChat 생성: gen_chat_id={gen_chat.gen_chat_id}, title={initial_title}")
 
                 # 사용자 메시지 저장
-                user_msg = GenMessage.objects.create(
+                user_msg = await sync_to_async(GenMessage.objects.create)(
                     gen_chat=gen_chat,
                     sender_type='U',
                     content=message
@@ -323,12 +320,16 @@ class ChatStreamView(View):
         # 2. 이전 대화 히스토리 로드 (최근 10개) - RDS
         message_history = []
         if gen_chat and user_msg:
-            prev_messages = GenMessage.objects.filter(gen_chat=gen_chat).exclude(
-                gen_message_id=user_msg.gen_message_id
-            ).order_by('created_at')
-            message_count = prev_messages.count()
-            start_index = max(0, message_count - 10)
-            recent_messages = list(prev_messages[start_index:])
+            @sync_to_async
+            def get_prev_messages():
+                prev_messages = GenMessage.objects.filter(gen_chat=gen_chat).exclude(
+                    gen_message_id=user_msg.gen_message_id
+                ).order_by('created_at')
+                message_count = prev_messages.count()
+                start_index = max(0, message_count - 10)
+                return list(prev_messages[start_index:]), message_count
+
+            recent_messages, message_count = await get_prev_messages()
 
             message_history = [
                 {"role": "user" if msg.sender_type == 'U' else "assistant", "content": msg.content}
@@ -340,22 +341,17 @@ class ChatStreamView(View):
                     logger.info(f"  └ 최근 {i+1}: [{msg['role']}] {msg['content'][:50]}...")
 
         # 3. Mem0 컨텍스트 로드 (선택적 - 실패해도 계속 진행)
-        # 새 구조: 단기(상세) + 장기(요약) 분리, user_memories 제거
-        mem0_context = None
         memory_context_str = ""
         if gen_chat:
             try:
-                memory_service = get_memory_service()
+                memory_service = await sync_to_async(get_memory_service)()
                 if memory_service:
-                    mem0_context = memory_service.build_gen_chat_context(
+                    mem0_context = await sync_to_async(memory_service.build_gen_chat_context)(
                         gen_chat_id=gen_chat.gen_chat_id,
                         query=message
                     )
 
-                    # Mem0 컨텍스트를 문자열로 변환 (단기 우선, 장기 보충)
                     context_parts = []
-
-                    # 단기 메모리 (상세)
                     if mem0_context.get("short_memories"):
                         memories_text = "\n".join([
                             f"- {m.get('memory', m.get('content', ''))}"
@@ -363,7 +359,6 @@ class ChatStreamView(View):
                         ])
                         context_parts.append(f"[이전 대화 상세]\n{memories_text}")
 
-                    # 장기 메모리 (요약)
                     if mem0_context.get("long_memories"):
                         summaries_text = "\n".join([
                             f"- {m.get('memory', m.get('content', ''))}"
@@ -380,125 +375,98 @@ class ChatStreamView(View):
         # gen_chat_id 전송 (프론트엔드에서 추적용)
         gen_chat_id_to_send = gen_chat.gen_chat_id if gen_chat else None
 
-        # 응답 수집을 위한 container (동기 컨텍스트에서 DB 저장용)
-        response_container = {"full_response": "", "tools_used": []}
+        # 4. 스트리밍 시작
+        tools_used = []
+        seen_tools = set()
+        full_response = ""
 
-        async def run_stream():
-            tools_used = []
-            seen_tools = set()
-            full_response = ""  # 전체 응답 수집 (편집 JSON 파싱용)
+        # gen_chat_id 전송
+        if gen_chat_id_to_send:
+            yield f"data: {json.dumps({'type': 'init', 'gen_chat_id': gen_chat_id_to_send})}\n\n"
 
-            # gen_chat_id 전송
-            if gen_chat_id_to_send:
-                yield f"data: {json.dumps({'type': 'init', 'gen_chat_id': gen_chat_id_to_send})}\n\n"
-
-            try:
-                # 문서가 있으면 document_writing_agent, 없으면 trade_agent
-                if document:
-                    agent = get_document_writing_agent(
-                        document_content=document,
-                        prompt_version=PROMPT_VERSION,
-                        prompt_label=PROMPT_LABEL
-                    )
-                else:
-                    agent = get_trade_agent(
-                        prompt_version=PROMPT_VERSION,
-                        prompt_label=PROMPT_LABEL
-                    )
-
-                # 컨텍스트 추가된 입력 생성
-                enhanced_input = message
-                if memory_context_str:
-                    enhanced_input = f"{memory_context_str}\n\n{message}"
-
-                # Agent input 준비 (히스토리 포함)
-                if message_history:
-                    input_items = []
-                    for msg in message_history:
-                        input_items.append({"role": msg["role"], "content": msg["content"]})
-                    input_items.append({"role": "user", "content": enhanced_input})
-                    final_input = input_items
-                else:
-                    final_input = enhanced_input
-
-                result = Runner.run_streamed(agent, input=final_input)
-
-                async for event in result.stream_events():
-                    # 텍스트 델타 이벤트 처리
-                    if event.type == "raw_response_event":
-                        data = event.data
-
-                        if hasattr(data, 'type') and data.type == 'response.output_text.delta':
-                            if hasattr(data, 'delta') and data.delta:
-                                full_response += data.delta
-                                yield f"data: {json.dumps({'type': 'text', 'content': data.delta})}\n\n"
-
-                    # 툴 호출 이벤트
-                    elif event.type == "run_item_stream_event":
-                        item = event.item
-                        if isinstance(item, ToolCallItem):
-                            try:
-                                tool_name = item.raw_item.name
-                            except AttributeError:
-                                try:
-                                    tool_name = getattr(item, 'name', None)
-                                except:
-                                    continue
-
-                            if tool_name and tool_name not in seen_tools:
-                                seen_tools.add(tool_name)
-                                tool_info = TOOL_DISPLAY_INFO.get(tool_name, {
-                                    'name': tool_name,
-                                    'icon': 'tool',
-                                    'description': f'{tool_name} 도구를 사용했습니다.'
-                                })
-                                tool_data = {'id': tool_name, **tool_info}
-                                tools_used.append(tool_data)
-                                yield f"data: {json.dumps({'type': 'tool', 'tool': tool_data})}\n\n"
-
-                # 응답을 container에 저장 (동기 컨텍스트에서 DB 저장용)
-                response_container["full_response"] = full_response
-                response_container["tools_used"] = tools_used
-
-                # 스트리밍 완료 후 편집 응답인지 확인
-                print(f"[DEBUG] full_response 길이: {len(full_response)}")
-                print(f"[DEBUG] full_response 앞 500자: {full_response[:500]}")
-                edit_response = parse_edit_response(full_response)
-                print(f"[DEBUG] edit_response: {edit_response}")
-
-                if edit_response:
-                    # 편집 응답이면 edit 이벤트 전송 (fieldId/value format)
-                    yield f"data: {json.dumps({'type': 'edit', 'message': edit_response['message'], 'changes': edit_response['changes']})}\n\n"
-
-                # 완료 이벤트
-                yield f"data: {json.dumps({'type': 'done', 'tools_used': tools_used})}\n\n"
-
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
-
-        # 비동기 제너레이터를 동기로 변환
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         try:
-            async_gen = run_stream()
-            while True:
-                try:
-                    chunk = loop.run_until_complete(async_gen.__anext__())
-                    yield chunk
-                except StopAsyncIteration:
-                    break
-        finally:
-            loop.close()
+            # 문서가 있으면 document_writing_agent, 없으면 trade_agent
+            if document:
+                agent = get_document_writing_agent(
+                    document_content=document,
+                    prompt_version=PROMPT_VERSION,
+                    prompt_label=PROMPT_LABEL
+                )
+            else:
+                agent = get_trade_agent(
+                    prompt_version=PROMPT_VERSION,
+                    prompt_label=PROMPT_LABEL
+                )
 
-        # 스트리밍 완료 후 동기 컨텍스트에서 DB 저장
-        full_response = response_container["full_response"]
+            # 컨텍스트 추가된 입력 생성
+            enhanced_input = message
+            if memory_context_str:
+                enhanced_input = f"{memory_context_str}\n\n{message}"
 
-        # AI 응답 저장 (GenMessage)
+            # Agent input 준비 (히스토리 포함)
+            if message_history:
+                input_items = []
+                for msg in message_history:
+                    input_items.append({"role": msg["role"], "content": msg["content"]})
+                input_items.append({"role": "user", "content": enhanced_input})
+                final_input = input_items
+            else:
+                final_input = enhanced_input
+
+            result = Runner.run_streamed(agent, input=final_input)
+
+            async for event in result.stream_events():
+                # 텍스트 델타 이벤트 처리
+                if event.type == "raw_response_event":
+                    data = event.data
+                    if hasattr(data, 'type') and data.type == 'response.output_text.delta':
+                        if hasattr(data, 'delta') and data.delta:
+                            full_response += data.delta
+                            yield f"data: {json.dumps({'type': 'text', 'content': data.delta})}\n\n"
+
+                # 툴 호출 이벤트
+                elif event.type == "run_item_stream_event":
+                    item = event.item
+                    if isinstance(item, ToolCallItem):
+                        try:
+                            tool_name = item.raw_item.name
+                        except AttributeError:
+                            try:
+                                tool_name = getattr(item, 'name', None)
+                            except:
+                                continue
+
+                        if tool_name and tool_name not in seen_tools:
+                            seen_tools.add(tool_name)
+                            tool_info = TOOL_DISPLAY_INFO.get(tool_name, {
+                                'name': tool_name,
+                                'icon': 'tool',
+                                'description': f'{tool_name} 도구를 사용했습니다.'
+                            })
+                            tool_data = {'id': tool_name, **tool_info}
+                            tools_used.append(tool_data)
+                            yield f"data: {json.dumps({'type': 'tool', 'tool': tool_data})}\n\n"
+
+            # 스트리밍 완료 후 편집 응답인지 확인
+            logger.debug(f"[DEBUG] full_response 길이: {len(full_response)}")
+            edit_response = parse_edit_response(full_response)
+
+            if edit_response:
+                yield f"data: {json.dumps({'type': 'edit', 'message': edit_response['message'], 'changes': edit_response['changes']})}\n\n"
+
+            # 완료 이벤트
+            yield f"data: {json.dumps({'type': 'done', 'tools_used': tools_used})}\n\n"
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+            return
+
+        # 5. 스트리밍 완료 후 DB 저장
         if gen_chat and full_response:
             try:
-                GenMessage.objects.create(
+                await sync_to_async(GenMessage.objects.create)(
                     gen_chat=gen_chat,
                     sender_type='A',
                     content=full_response
@@ -507,10 +475,10 @@ class ChatStreamView(View):
             except Exception as save_err:
                 logger.error(f"❌ AI 응답 저장 실패: {save_err}")
 
-        # Mem0에 메모리 추가 (단기: 매번, 장기: 10턴마다)
+        # 6. Mem0에 메모리 추가 (단기: 매번, 장기: 10턴마다)
         if gen_chat and full_response:
             try:
-                memory_service = get_memory_service()
+                memory_service = await sync_to_async(get_memory_service)()
                 if memory_service:
                     messages = [
                         {"role": "user", "content": message},
@@ -518,22 +486,22 @@ class ChatStreamView(View):
                     ]
 
                     # 단기 메모리 저장 (매번)
-                    memory_service.add_gen_chat_short_memory(
+                    await sync_to_async(memory_service.add_gen_chat_short_memory)(
                         gen_chat_id=gen_chat.gen_chat_id,
                         messages=messages
                     )
 
                     # 10턴마다 장기 메모리에 요약 저장
-                    # 현재 총 메시지 수 계산
-                    total_messages = GenMessage.objects.filter(gen_chat=gen_chat).count()
-                    turn_count = total_messages // 2  # 1턴 = user + assistant
+                    @sync_to_async
+                    def get_turn_info():
+                        total = GenMessage.objects.filter(gen_chat=gen_chat).count()
+                        turn = total // 2
+                        recent = list(GenMessage.objects.filter(gen_chat=gen_chat).order_by('-created_at')[:20])
+                        return turn, recent
+
+                    turn_count, recent_for_summary = await get_turn_info()
 
                     if turn_count > 0 and turn_count % 10 == 0:
-                        # 최근 10턴(20개 메시지)을 가져와서 요약 저장
-                        recent_for_summary = GenMessage.objects.filter(
-                            gen_chat=gen_chat
-                        ).order_by('-created_at')[:20]
-
                         summary_messages = [
                             {"role": "user" if m.sender_type == 'U' else "assistant", "content": m.content}
                             for m in reversed(recent_for_summary)
@@ -541,7 +509,7 @@ class ChatStreamView(View):
 
                         turn_start = turn_count - 9
                         turn_end = turn_count
-                        memory_service.add_gen_chat_long_memory(
+                        await sync_to_async(memory_service.add_gen_chat_long_memory)(
                             gen_chat_id=gen_chat.gen_chat_id,
                             messages=summary_messages,
                             turn_range=f"{turn_start}-{turn_end}"
