@@ -210,6 +210,7 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
     setGenChatId(null);
     setMessages([]);
     setCurrentToolStatus(null);  // tool 상태 초기화
+    setIsLoading(false);  // 새 채팅에서 즉시 입력 가능하도록 로딩 상태 초기화
   };
 
   // 채팅 삭제 후 콜백 (현재 보고 있는 채팅이면 초기화)
