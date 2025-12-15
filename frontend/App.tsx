@@ -352,6 +352,24 @@ function App() {
           const stepMode = data.stepModes?.[key];
           if (stepMode === 'skip' || stepMode === 'upload') return;
 
+          // 저장할 step 결정: upload/skip 모드면 다음 직접 작성 step을 저장
+          let targetStep = step;
+          const currentStepMode = data.stepModes?.[step];
+          if (currentStepMode === 'upload' || currentStepMode === 'skip') {
+            // step1 upload/skip → step2, step3 upload/skip → step4
+            if (step === 1) targetStep = 2;
+            else if (step === 3) targetStep = 4;
+          }
+
+          // targetStep에 해당하는 step만 버전 저장
+          if (targetStep <= 3) {
+            if (key !== targetStep) return;
+          } else {
+            // step 4: activeShippingDoc에 따라 CI(4) 또는 PL(5)만 저장
+            const targetKey = activeShippingDoc === 'PL' ? 5 : 4;
+            if (key !== targetKey) return;
+          }
+
           const content = data[key];
           if (!content) return;
 

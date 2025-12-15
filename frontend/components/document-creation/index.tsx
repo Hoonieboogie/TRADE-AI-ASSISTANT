@@ -51,7 +51,7 @@ import { saleContractTemplateHTML } from '../../templates/saleContract';
 import { commercialInvoiceTemplateHTML } from '../../templates/commercialInvoice';
 
 // Utils
-import { checkStepCompletion } from '../../utils/documentUtils';
+import { checkStepCompletion, extractDataFromContent, updateContentWithSharedData as applySharedData } from '../../utils/documentUtils';
 import { DocumentData } from '../../App';
 
 
@@ -73,6 +73,10 @@ export default function DocumentCreationPage({
   const editorRef = useRef<ContractEditorRef>(null);
   const chatButtonRef = useRef<HTMLButtonElement>(null);
 
+  // 매핑 진행 상태 및 최신 데이터 추적용 ref
+  const mappingInProgressRef = useRef(false);
+  const latestDocumentDataRef = useRef<DocumentData>(documentData);
+
   // Custom Hooks
   const {
     uploadedFiles,
@@ -91,6 +95,9 @@ export default function DocumentCreationPage({
     documentData.uploadedConvertedPdfUrls as Record<number, string>,
     {
       onTemplateDataExtracted: (step, templateData) => {
+        // 매핑 시작 플래그 설정 (handleSave에서 대기용)
+        mappingInProgressRef.current = true;
+
         console.log('=== Template Data Extracted ===');
         console.log('Template type:', templateData.template_type);
         console.log('Row count:', templateData.row_count);
@@ -311,8 +318,10 @@ export default function DocumentCreationPage({
           setSharedData(prev => ({ ...prev, ...newSharedData }));
 
           // ===== [3단계] 모든 문서에 데이터 매핑 =====
+          // newSharedData를 클로저로 캡처하여 직접 사용 (stale closure 문제 회피)
           setTimeout(() => {
             console.log('[Step 3] Mapping data to all documents...');
+            console.log('[Step 3] Using newSharedData directly:', Object.keys(newSharedData).length, 'fields');
 
             setDocumentData((prev: DocumentData) => {
               // [실험 1B] 세 번째 setDocumentData의 prev 상태
@@ -327,17 +336,34 @@ export default function DocumentCreationPage({
 
               const newData = { ...prev };
 
-              // 모든 문서에 sharedData 적용
+              // 모든 문서에 newSharedData 직접 적용 (updateContentWithSharedData 대신)
+              // updateContentWithSharedData는 클로저의 stale sharedData를 사용하므로 직접 매핑
               Object.keys(newData).forEach(key => {
                 const docKey = Number(key);
                 if (isNaN(docKey) || key === 'title') return;
 
                 const content = newData[docKey];
                 if (typeof content === 'string') {
-                  const updated = updateContentWithSharedData(content);
-                  if (updated !== content) {
-                    newData[docKey] = updated;
-                    console.log(`Document ${docKey} updated`);
+                  // 직접 매핑 적용
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(content, 'text/html');
+                  const fields = doc.querySelectorAll('span[data-field-id]');
+
+                  let modified = false;
+                  fields.forEach(field => {
+                    const fieldKey = field.getAttribute('data-field-id');
+                    if (fieldKey && newSharedData[fieldKey]) {
+                      if (field.textContent !== newSharedData[fieldKey]) {
+                        field.textContent = newSharedData[fieldKey];
+                        field.setAttribute('data-source', 'mapped');
+                        modified = true;
+                      }
+                    }
+                  });
+
+                  if (modified) {
+                    newData[docKey] = doc.body.innerHTML;
+                    console.log(`Document ${docKey} updated with direct mapping`);
                   }
                 }
               });
@@ -353,6 +379,13 @@ export default function DocumentCreationPage({
                 5: ((newData[5] as string || '').match(/<tr/g) || []).length,
               };
               console.log('[E1C] AFTER mapping newData trCounts:', e1c_trCounts);
+
+              // ref 직접 업데이트 (useEffect 대기 없이 즉시 사용 가능)
+              latestDocumentDataRef.current = newData;
+
+              // 매핑 완료 플래그 설정 (콜백 내부에서 설정해야 ref 업데이트 후 실행 보장)
+              mappingInProgressRef.current = false;
+              console.log('[Step 3] latestDocumentDataRef updated & mapping flag reset');
 
               return newData;
             });
@@ -383,6 +416,30 @@ export default function DocumentCreationPage({
     setShippingOrder,
     getDocKeyForStep
   } = useDocumentState(documentData, initialActiveShippingDoc);
+
+  // 초기 로드 시 documentData에서 sharedData 추출 (재접속 시 매핑 복원)
+  const isSharedDataInitialized = useRef(false);
+  useEffect(() => {
+    if (isSharedDataInitialized.current) return;
+
+    // documentData에 content가 있을 때까지 대기
+    const hasContent = [1, 2, 3, 4, 5].some(step => typeof documentData[step] === 'string');
+    if (!hasContent) return;
+
+    [1, 2, 3, 4, 5].forEach(step => {
+      const content = documentData[step];
+      if (typeof content === 'string') {
+        extractData(content);
+      }
+    });
+
+    isSharedDataInitialized.current = true;
+  }, [documentData, extractData]);
+
+  // documentData 변경 시 ref 동기화 (handleSave에서 최신 데이터 사용)
+  useEffect(() => {
+    latestDocumentDataRef.current = documentData;
+  }, [documentData]);
 
   // UI State
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -650,13 +707,58 @@ export default function DocumentCreationPage({
     }, 100);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // 매핑 완료 대기 (파일 업로드 직후 저장 시 필요)
+    // mappingInProgressRef가 true이면 false가 될 때까지 폴링
+    if (mappingInProgressRef.current) {
+      console.log('[handleSave] Waiting for mapping to complete...');
+      const maxWait = 2000; // 최대 2초 대기
+      const pollInterval = 50; // 50ms 간격으로 확인
+      let waited = 0;
+
+      while (mappingInProgressRef.current && waited < maxWait) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        waited += pollInterval;
+      }
+
+      if (mappingInProgressRef.current) {
+        console.warn('[handleSave] Mapping timeout, proceeding anyway');
+      } else {
+        console.log(`[handleSave] Mapping completed after ${waited}ms`);
+      }
+    }
+
+    // latestDocumentDataRef에서 최신 데이터 가져오기 (매핑된 데이터 포함)
+    const latestData = latestDocumentDataRef.current;
+    console.log('[handleSave] Using latest data from ref');
+
     const newDocData: DocumentData = {
-      ...documentData,
+      ...latestData,
       stepModes,
       uploadedFileNames,
       uploadedFileUrls: uploadedDocumentUrls
     };
+
+    // [추가] sharedData + documentData에서 추출한 데이터 통합
+    const combinedSharedData: Record<string, string> = {};
+    [1, 2, 3, 4, 5].forEach(step => {
+      const content = newDocData[step];
+      if (typeof content === 'string') {
+        const data = extractDataFromContent(content);
+        Object.assign(combinedSharedData, data);
+      }
+    });
+
+    // [추가] 모든 step에 매핑 적용 (editorRef 없어도 동작)
+    [1, 2, 3, 4, 5].forEach(step => {
+      const content = newDocData[step];
+      if (typeof content === 'string') {
+        const updated = applySharedData(content, combinedSharedData);
+        if (updated !== content) {
+          newDocData[step] = updated;
+        }
+      }
+    });
 
     if (editorRef.current) {
       const content = editorRef.current.getContent();
@@ -678,9 +780,10 @@ export default function DocumentCreationPage({
           if (updated !== originalContent) (newDocData as any)[key] = updated;
         }
       });
-
-      setDocumentData(newDocData);
     }
+
+    // 에디터 유무와 관계없이 항상 documentData 업데이트 (업로드 직후 저장 시 필요)
+    setDocumentData(newDocData);
 
     // [ADDED] Check if all steps are completed
     let isAllCompleted = true;
