@@ -286,9 +286,9 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
       let accumulatedContent = '';
       let accumulatedTools: ToolUsed[] = [];
 
-      // 채팅 전환 여부 체크 헬퍼 (세션 ID 비교로 확실한 격리)
+      // 채팅 전환 여부 체크 헬퍼 (클로저 캡처된 세션 ID로 확실한 격리)
       const isStillSameSession = () => {
-        return streamingSessionRef.current === currentSessionRef.current;
+        return myStreamingSession === currentSessionRef.current;
       };
 
       while (true) {
@@ -411,10 +411,11 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
         });
       }
     } finally {
-      setIsLoading(false);
-      setLoadingSessionId(null);  // 로딩 세션 ID 초기화
-      // 세션이 동일할 때만 tool 상태 초기화
-      if (streamingSessionRef.current === currentSessionRef.current) {
+      // 세션이 동일할 때만 로딩 상태 및 tool 상태 초기화
+      // (다른 채팅의 스트리밍 종료가 현재 채팅에 영향 주지 않도록)
+      if (myStreamingSession === currentSessionRef.current) {
+        setIsLoading(false);
+        setLoadingSessionId(null);
         setCurrentToolStatus(null);
       }
     }
