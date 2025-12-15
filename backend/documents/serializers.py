@@ -101,61 +101,37 @@ class LoginResponseSerializer(serializers.Serializer):
 
 
 # =============================================================================
-# TradeFlow Serializers
+# DocVersion Serializers
 # =============================================================================
 
-class TradeFlowListSerializer(serializers.ModelSerializer):
-    """거래 플로우 목록 Serializer"""
+# =============================================================================
+# DocVersion Serializers
+# =============================================================================
 
-    document_count = serializers.SerializerMethodField()
-    completed_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = TradeFlow
-        fields = [
-            'trade_id',
-            'title',
-            'status',
-            'document_count',
-            'completed_count',
-            'created_at',
-            'updated_at',
-        ]
-
-    def get_document_count(self, obj):
-        return obj.documents.count()
-
-    def get_completed_count(self, obj):
-        return obj.documents.filter(versions__isnull=False).distinct().count()
-
-
-class TradeFlowCreateSerializer(serializers.ModelSerializer):
-    """거래 플로우 생성 Serializer"""
+class DocVersionSummarySerializer(serializers.ModelSerializer):
+    """문서 버전 요약 Serializer (스냅샷 제외)"""
 
     class Meta:
-        model = TradeFlow
-        fields = ['title']
+        model = DocVersion
+        fields = ['version_id', 'trade', 'meta', 'created_at']
+        read_only_fields = ['version_id', 'created_at']
 
 
-class TradeFlowDetailSerializer(serializers.ModelSerializer):
-    """거래 플로우 상세 Serializer"""
-
-    documents = serializers.SerializerMethodField()
+class DocVersionSerializer(serializers.ModelSerializer):
+    """문서 버전 상세 Serializer (스냅샷 포함)"""
 
     class Meta:
-        model = TradeFlow
-        fields = [
-            'trade_id',
-            'title',
-            'status',
-            'documents',
-            'created_at',
-            'updated_at',
-        ]
+        model = DocVersion
+        fields = ['version_id', 'trade', 'snapshot', 'meta', 'created_at']
+        read_only_fields = ['version_id', 'created_at']
 
-    def get_documents(self, obj):
-        documents = obj.documents.all()
-        return DocumentSerializer(documents, many=True).data
+
+class DocVersionCreateSerializer(serializers.ModelSerializer):
+    """문서 버전 생성 Serializer"""
+
+    class Meta:
+        model = DocVersion
+        fields = ['trade', 'snapshot', 'meta']
 
 
 # =============================================================================
@@ -194,13 +170,14 @@ class DocumentSerializer(serializers.ModelSerializer):
         read_only_fields = ['doc_id', 'created_at', 'updated_at']
 
     def get_latest_version(self, obj):
-        latest = obj.versions.first()
-        if latest:
-            return DocVersionSerializer(latest).data
+        # Deprecated: Versions are now at Trade level
         return None
 
     def get_version_count(self, obj):
-        return obj.versions.count()
+        # Return total versions of the trade
+        if obj.trade:
+            return obj.trade.versions.count()
+        return 0
 
 
 class DocumentCreateSerializer(serializers.ModelSerializer):
@@ -221,24 +198,84 @@ class DocumentUpdateSerializer(serializers.ModelSerializer):
 
 
 # =============================================================================
-# DocVersion Serializers
+# TradeFlow Serializers
 # =============================================================================
 
-class DocVersionSerializer(serializers.ModelSerializer):
-    """문서 버전 Serializer"""
+class TradeFlowListSerializer(serializers.ModelSerializer):
+    """거래 플로우 목록 Serializer"""
+
+    documents = serializers.SerializerMethodField()
+    versions = DocVersionSummarySerializer(many=True, read_only=True)
+    latest_version = serializers.SerializerMethodField()
+    document_count = serializers.SerializerMethodField()
+    completed_count = serializers.SerializerMethodField()
 
     class Meta:
-        model = DocVersion
-        fields = ['version_id', 'doc_id', 'content', 'created_at']
-        read_only_fields = ['version_id', 'created_at']
+        model = TradeFlow
+        fields = [
+            'trade_id',
+            'title',
+            'status',
+            'document_count',
+            'completed_count',
+            'documents',
+            'versions',
+            'latest_version',
+            'created_at',
+            'updated_at',
+        ]
+
+    def get_document_count(self, obj):
+        return obj.documents.count()
+
+    def get_completed_count(self, obj):
+        # Check latest snapshot for completed steps
+        latest = obj.versions.first()
+        if latest and latest.snapshot:
+            # Count how many steps have content in the snapshot
+            return len(latest.snapshot.keys())
+        return 0
+
+    def get_documents(self, obj):
+        documents = obj.documents.all()
+        return DocumentSerializer(documents, many=True).data
+
+    def get_latest_version(self, obj):
+        latest = obj.versions.first()
+        if latest:
+            return DocVersionSerializer(latest).data
+        return None
 
 
-class DocVersionCreateSerializer(serializers.ModelSerializer):
-    """문서 버전 생성 Serializer"""
+class TradeFlowCreateSerializer(serializers.ModelSerializer):
+    """거래 플로우 생성 Serializer"""
 
     class Meta:
-        model = DocVersion
-        fields = ['doc', 'content']
+        model = TradeFlow
+        fields = ['title']
+
+
+class TradeFlowDetailSerializer(serializers.ModelSerializer):
+    """거래 플로우 상세 Serializer"""
+
+    documents = serializers.SerializerMethodField()
+    versions = DocVersionSummarySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TradeFlow
+        fields = [
+            'trade_id',
+            'title',
+            'status',
+            'documents',
+            'versions',
+            'created_at',
+            'updated_at',
+        ]
+
+    def get_documents(self, obj):
+        documents = obj.documents.all()
+        return DocumentSerializer(documents, many=True).data
 
 
 # =============================================================================

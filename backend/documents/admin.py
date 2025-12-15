@@ -48,9 +48,11 @@ class DocumentAdmin(admin.ModelAdmin):
 
 @admin.register(DocVersion)
 class DocVersionAdmin(admin.ModelAdmin):
-    list_display = ['version_id', 'doc', 'created_at']
-    search_fields = ['doc__trade__title']
-    raw_id_fields = ['doc']
+    list_display = ['version_id', 'trade', 'created_at']
+    list_filter = ['trade', 'created_at']
+    search_fields = ['trade__title']
+    readonly_fields = ['created_at']
+    raw_id_fields = ['trade']
 
 
 @admin.register(DocMessage)

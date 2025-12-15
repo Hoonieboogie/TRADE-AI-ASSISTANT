@@ -3,18 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Clock, RotateCcw, Filter, ChevronDown, Check, Calendar } from 'lucide-react';
 import { DocumentData } from '../App';
 
-export interface Version {
-  id: string;
-  timestamp: number;
-  data: DocumentData;
-  step: number;
-}
+import { DocVersion } from '../utils/api';
 
 interface VersionHistorySidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  versions: Version[];
-  onRestore?: (version: Version) => void;
+  versions: DocVersion[];
+  onRestore?: (version: DocVersion) => void;
   currentStep?: number;
 }
 
@@ -35,9 +30,9 @@ export default function VersionHistorySidebar({
       if (versions.length > 0) {
         // Find the most recent version
         const lastVersion = versions.reduce((prev, current) =>
-          (prev.timestamp > current.timestamp) ? prev : current
+          (new Date(prev.created_at).getTime() > new Date(current.created_at).getTime()) ? prev : current
         );
-        setSelectedFilter(lastVersion.step);
+        setSelectedFilter(lastVersion.meta.savedFromStep);
       } else {
         setSelectedFilter('all');
       }
@@ -89,8 +84,8 @@ export default function VersionHistorySidebar({
   };
 
   const filteredVersions = versions
-    .filter(v => selectedFilter === 'all' || v.step === selectedFilter)
-    .sort((a, b) => b.timestamp - a.timestamp);
+    .filter(v => selectedFilter === 'all' || v.meta.savedFromStep === selectedFilter)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const filterOptions = [
     { value: 'all', label: '전체 문서 보기' },
@@ -198,7 +193,7 @@ export default function VersionHistorySidebar({
               ) : (
                 filteredVersions.map((version, index) => (
                   <motion.div
-                    key={version.id}
+                    key={version.version_id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
@@ -219,11 +214,11 @@ export default function VersionHistorySidebar({
                             </span>
                             <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {formatTimeAgo(version.timestamp)}
+                              {formatTimeAgo(new Date(version.created_at).getTime())}
                             </span>
                           </div>
                           <h3 className="font-bold text-gray-900 text-base leading-tight">
-                            {version.data.title || '제목 없음'}
+                            {version.meta.title || '제목 없음'}
                           </h3>
                         </div>
                       </div>
@@ -232,12 +227,12 @@ export default function VersionHistorySidebar({
                         <div className="flex items-center gap-2 mb-1">
                           <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
                           <p className="text-sm font-semibold text-gray-700">
-                            {getTemplateName(version.step)}
+                            {getTemplateName(version.meta.savedFromStep)}
                           </p>
                         </div>
                         <p className="text-xs text-gray-500 pl-3.5 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {formatActualDate(version.timestamp)}
+                          {formatActualDate(new Date(version.created_at).getTime())}
                         </p>
                       </div>
 

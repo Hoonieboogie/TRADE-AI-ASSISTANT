@@ -4,7 +4,7 @@ import ChatPage from './components/ChatPage';
 import DocumentCreationPage from './components/DocumentCreationPage';
 import LoginPage from './components/LoginPage';
 import AdminPage from './components/AdminPage';
-import { User, api, Trade } from './utils/api';
+import { User, api, Trade, DocVersion } from './utils/api';
 import { checkStepCompletion, hydrateTemplate } from './utils/documentUtils';
 import { offerSheetTemplateHTML } from './templates/offerSheet';
 import { proformaInvoiceTemplateHTML } from './templates/proformaInvoice';
@@ -31,12 +31,7 @@ export interface SavedDocument {
   content?: DocumentData;
   lastStep?: number;
   lastActiveShippingDoc?: 'CI' | 'PL' | null;
-  versions?: {
-    id: string;
-    timestamp: number;
-    data: DocumentData;
-    step: number;
-  }[];
+  versions?: DocVersion[];
   tradeData?: Trade; // 백엔드 Trade 원본 데이터
 }
 
@@ -111,21 +106,18 @@ function App() {
     }
 
     try {
-      const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_URL}/api/trade/init/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser.emp_no, title: generateUniqueTitle('새 문서') })
+      const trade = await api.createTrade(currentUser.user_id, generateUniqueTitle('새 문서'));
+
+      const tradeId = trade.trade_id.toString();
+      const docIds: Record<string, number> = {};
+      trade.documents?.forEach(d => {
+        docIds[d.doc_type] = d.doc_id;
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const tradeId = data.trade_id.toString();
-        setCurrentDocId(tradeId);
-        setCurrentDocIds(data.doc_ids);
-        setIsNewTrade(true);
-        return { tradeId, docIds: data.doc_ids };
-      }
+      setCurrentDocId(tradeId);
+      setCurrentDocIds(docIds);
+      setIsNewTrade(true);
+      return { tradeId, docIds };
     } catch (error) {
       console.error('[App] Trade 생성 오류:', error);
     }
@@ -208,42 +200,39 @@ function App() {
 
     setIsLoadingTrades(true);
     try {
-      const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_URL}/api/trade/dashboard/?user_id=${currentUser.user_id}`);
-      if (!response.ok) throw new Error(`Failed to fetch dashboard: ${response.statusText}`);
+      const trades = await api.getTrades(currentUser.user_id);
 
-      const trades = await response.json();
-      const documents: SavedDocument[] = trades.map((trade: any) => {
+      const documents: SavedDocument[] = trades.map((trade) => {
         const content: DocumentData = { title: trade.title };
-        const allVersions: { id: string; timestamp: number; data: DocumentData; step: number }[] = [];
 
-        trade.documents?.forEach((doc: any) => {
+        trade.documents?.forEach((doc) => {
           const step = docTypeToStep(doc.doc_type);
-
           if (doc.doc_mode) content.stepModes = { ...(content.stepModes || {}), [step]: doc.doc_mode };
-
-          if (doc.latest_version?.content) {
-            const latestContent = doc.latest_version.content;
-            if (latestContent.html) content[step] = latestContent.html;
-            else if (typeof latestContent === 'string') content[step] = latestContent;
-            if (latestContent.title && !content.title) content.title = latestContent.title;
-          }
-
-          doc.all_versions?.forEach((version: any) => {
-            if (version.content) {
-              const vc = version.content;
-              allVersions.push({
-                id: version.version_id.toString(),
-                timestamp: new Date(version.created_at).getTime(),
-                data: { [step]: vc.html || vc, title: vc.title },
-                step
-              });
-            }
-          });
         });
 
-        allVersions.sort((a, b) => b.timestamp - a.timestamp);
-        const lastStep = allVersions.length > 0 ? allVersions[0].step : 1;
+        // Load content from latest trade version snapshot
+        if (trade.latest_version?.snapshot) {
+          const snapshot = trade.latest_version.snapshot;
+          Object.entries(snapshot).forEach(([stepKey, html]) => {
+            const step = parseInt(stepKey);
+            if (!isNaN(step)) {
+              content[step] = html;
+            }
+          });
+
+          // Set title from version meta if available
+          if (trade.latest_version.meta?.title) {
+            content.title = trade.latest_version.meta.title;
+          }
+        }
+
+        // Use new versions structure directly
+        const allVersions = trade.versions || [];
+
+        // Sort by created_at desc
+        allVersions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+        const lastStep = allVersions.length > 0 ? allVersions[0].meta.savedFromStep : 1;
 
         let completedCount = 0;
         const totalSteps = 5;
@@ -251,7 +240,7 @@ function App() {
 
         for (let i = 0; i < totalSteps; i++) {
           const step = i + 1;
-          const doc = trade.documents?.find((d: any) => d.doc_type === docTypes[i]);
+          const doc = trade.documents?.find((d) => d.doc_type === docTypes[i]);
 
           if (doc?.doc_mode === 'skip' || (doc?.doc_mode === 'upload' && doc?.upload_status === 'ready')) {
             completedCount++;
@@ -318,21 +307,15 @@ function App() {
 
     try {
       if (!tradeId && currentUser) {
-        const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${API_URL}/api/trade/init/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: currentUser.emp_no, title: data.title || generateUniqueTitle('새 문서') })
+        const trade = await api.createTrade(currentUser.user_id, data.title || generateUniqueTitle('새 문서'));
+        tradeId = trade.trade_id.toString();
+        const docIds: Record<string, number> = {};
+        trade.documents?.forEach(d => {
+          docIds[d.doc_type] = d.doc_id;
         });
-        if (!response.ok) throw new Error('Trade 생성 실패');
-
-        const newTrade = await response.json();
-        tradeId = newTrade.trade_id.toString();
         setCurrentDocId(tradeId);
-        setCurrentDocIds(newTrade.doc_ids);
+        setCurrentDocIds(docIds);
       }
-
-      const docTypeMapping: Record<number, string> = { 1: 'offer', 2: 'pi', 3: 'contract', 4: 'ci', 5: 'pl' };
 
       if (tradeId) {
         const trade = await api.getTrade(parseInt(tradeId));
@@ -348,44 +331,20 @@ function App() {
           if (trade.status !== newStatus) await api.updateTrade(parseInt(tradeId), { status: newStatus });
         }
 
-        await Promise.all([1, 2, 3, 4, 5].map(async (key) => {
-          const stepMode = data.stepModes?.[key];
-          if (stepMode === 'skip' || stepMode === 'upload') return;
+        // Create Snapshot Version
+        const snapshot: Record<number, string> = {};
+        [1, 2, 3, 4, 5].forEach(k => {
+          if (typeof data[k] === 'string') snapshot[k] = data[k];
+        });
 
-          // 저장할 step 결정: upload/skip 모드면 다음 직접 작성 step을 저장
-          let targetStep = step;
-          const currentStepMode = data.stepModes?.[step];
-          if (currentStepMode === 'upload' || currentStepMode === 'skip') {
-            // step1 upload/skip → step2, step3 upload/skip → step4
-            if (step === 1) targetStep = 2;
-            else if (step === 3) targetStep = 4;
-          }
+        const meta = {
+          savedFromStep: step,
+          savedFromShippingDoc: activeShippingDoc,
+          title: data.title || '',
+          createdAt: new Date().toISOString()
+        };
 
-          // targetStep에 해당하는 step만 버전 저장
-          if (targetStep <= 3) {
-            if (key !== targetStep) return;
-          } else {
-            // step 4: activeShippingDoc에 따라 CI(4) 또는 PL(5)만 저장
-            const targetKey = activeShippingDoc === 'PL' ? 5 : 4;
-            if (key !== targetKey) return;
-          }
-
-          const content = data[key];
-          if (!content) return;
-
-          const docType = docTypeMapping[key];
-          const document = trade.documents?.find(d => d.doc_type === docType);
-          if (!document) return;
-
-          const versionContent = { html: content, title: data.title || '', stepModes: data.stepModes || {}, savedAt: new Date().toISOString() };
-          const latest = document.latest_version?.content;
-          const latestHtml = typeof latest === 'string' ? latest : (latest?.html || '');
-          const latestTitle = typeof latest === 'string' ? '' : (latest?.title || '');
-
-          if (latestHtml !== content || latestTitle !== (data.title || '')) {
-            await api.createVersion(document.doc_id, versionContent);
-          }
-        }));
+        await api.createVersion(parseInt(tradeId), snapshot, meta);
       }
 
       await fetchTrades();

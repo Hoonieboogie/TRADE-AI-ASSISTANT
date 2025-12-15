@@ -277,29 +277,31 @@ class Document(models.Model):
 
 class DocVersion(models.Model):
     """
-    문서 버전
+    문서 버전 (스냅샷 방식)
 
-    저장할 때마다 새 버전 생성
+    저장할 때마다 5개 문서 전체의 스냅샷을 저장
     """
     version_id = models.BigAutoField(primary_key=True)
-    doc = models.ForeignKey(
-        Document,
+    trade = models.ForeignKey(
+        TradeFlow,
         on_delete=models.CASCADE,
         related_name='versions',
-        help_text="문서"
+        help_text="거래 플로우",
+        null=True  # Migration support
     )
-    content = models.JSONField(help_text="문서 내용")
+    snapshot = models.JSONField(help_text="5개 문서 전체 HTML 스냅샷 {1: html, ...}", default=dict)
+    meta = models.JSONField(help_text="메타데이터 {savedFromStep, title, createdAt}", default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'doc_version'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['doc', '-created_at']),
+            models.Index(fields=['trade', '-created_at']),
         ]
 
     def __str__(self):
-        return f"{self.doc} - Version {self.version_id}"
+        return f"{self.trade.title} - Version {self.version_id}"
 
 
 class DocMessage(models.Model):

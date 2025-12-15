@@ -513,47 +513,41 @@ class DocVersionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        doc_id = self.request.query_params.get('doc_id')
-        if doc_id:
-            queryset = queryset.filter(doc_id=doc_id)
+        trade_id = self.request.query_params.get('trade_id')
+        if trade_id:
+            queryset = queryset.filter(trade_id=trade_id)
         return queryset
 
     def create(self, request, *args, **kwargs):
         """새 버전 생성"""
-        doc_id = request.data.get('doc_id')
-        content = request.data.get('content')
+        trade_id = request.data.get('trade_id')
+        snapshot = request.data.get('snapshot')
+        meta = request.data.get('meta')
 
-        if not doc_id or not content:
+        if not trade_id or not snapshot:
             return Response(
-                {'error': 'doc_id and content are required'},
+                {'error': 'trade_id and snapshot are required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
-            document = Document.objects.get(doc_id=doc_id)
-        except Document.DoesNotExist:
+            trade = TradeFlow.objects.get(trade_id=trade_id)
+        except TradeFlow.DoesNotExist:
             return Response(
-                {'error': 'Document not found'},
+                {'error': 'TradeFlow not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # doc_mode가 설정 안 되어 있으면 manual로 설정
-        if document.doc_mode != 'manual':
-            document.doc_mode = 'manual'
-
-        # Document의 updated_at 업데이트 (save 호출)
-        document.save()
-
-        # Trade의 updated_at도 업데이트
-        trade = document.trade
+        # Trade의 updated_at 업데이트
         trade.save()
 
         version = DocVersion.objects.create(
-            doc=document,
-            content=content
+            trade=trade,
+            snapshot=snapshot,
+            meta=meta or {}
         )
 
-        logger.info(f"Created version {version.version_id} for doc {doc_id}, trade {trade.trade_id} updated")
+        logger.info(f"Created version {version.version_id} for trade {trade_id}")
 
         return Response(
             DocVersionSerializer(version).data,

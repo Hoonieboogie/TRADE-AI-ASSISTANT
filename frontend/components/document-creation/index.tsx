@@ -38,7 +38,8 @@ import {
 } from './modals';
 
 // External Components
-import VersionHistorySidebar, { Version } from '../VersionHistorySidebar';
+import VersionHistorySidebar from '../VersionHistorySidebar';
+import { DocVersion, api } from '../../utils/api';
 import ContractEditor, { ContractEditorRef, FieldChange } from '../editor/ContractEditor';
 import ChatAssistant from '../ChatAssistant';
 import { ShootingStarIntro } from '../ShootingStarIntro';
@@ -76,6 +77,7 @@ export default function DocumentCreationPage({
   // 매핑 진행 상태 및 최신 데이터 추적용 ref
   const mappingInProgressRef = useRef(false);
   const latestDocumentDataRef = useRef<DocumentData>(documentData);
+  const isRestoringVersion = useRef(false);
 
   // Custom Hooks
   const {
@@ -470,7 +472,7 @@ export default function DocumentCreationPage({
 
 
   const isLoadingTemplate = useRef(false); // 템플릿 로딩 중 플래그
-  const isRestoringVersion = useRef(false); // 버전 복원 중 플래그
+
 
   // Intro Animation State
   const [hasShownIntro, setHasShownIntro] = useState(false);
@@ -916,6 +918,53 @@ export default function DocumentCreationPage({
     }
   };
 
+  const handleVersionRestore = async (version: DocVersion) => {
+    if (!confirm('이 버전으로 복원하시겠습니까? 현재 작업 중인 내용은 사라집니다.')) return;
+
+    isRestoringVersion.current = true;
+
+    let targetVersion = version;
+    if (!targetVersion.snapshot) {
+      try {
+        targetVersion = await api.getDocVersion(version.version_id);
+      } catch (error) {
+        console.error('Failed to fetch version details:', error);
+        alert('버전 정보를 불러오는 데 실패했습니다.');
+        isRestoringVersion.current = false;
+        return;
+      }
+    }
+
+    const snapshot = targetVersion.snapshot;
+    const newDocData: DocumentData = { ...documentData };
+
+    // Snapshot restoration
+    [1, 2, 3, 4, 5].forEach(step => {
+      if (snapshot[step]) {
+        newDocData[step] = snapshot[step];
+      }
+    });
+
+    if (version.meta.title) newDocData.title = version.meta.title;
+
+    setDocumentData(newDocData);
+    latestDocumentDataRef.current = newDocData;
+
+    const targetStep = version.meta.savedFromStep || 1;
+    setCurrentStep(targetStep);
+
+    // Force editor update if staying on same step
+    if (editorRef.current && targetStep === currentStep) {
+      editorRef.current.setContent(snapshot[targetStep] || '');
+    }
+
+    setTimeout(() => {
+      isRestoringVersion.current = false;
+    }, 500);
+
+    setShowVersionHistory(false);
+  };
+
   const handleBatchDownload = async (selectedSteps: Set<number>) => {
     // Close modal first
     setShowDownloadModal(false);
@@ -1338,6 +1387,7 @@ export default function DocumentCreationPage({
 
 
         // Find and delete rows that contain any of the deleted field IDs
+        // Use strict inclusion check but with trimmed strings
         rows.forEach((row, rowIndex) => {
           const rowFieldIds: string[] = [];
           const dataFields = row.querySelectorAll('[data-field-id]');
@@ -1350,8 +1400,6 @@ export default function DocumentCreationPage({
           });
 
 
-          // Check if this row contains any of the deleted field IDs
-          // Use strict inclusion check but with trimmed strings
           const hasDeletedField = rowFieldIds.some(id => deletedFieldIds.includes(id));
 
           if (hasDeletedField) {
@@ -1415,86 +1463,6 @@ export default function DocumentCreationPage({
 
     // 에디터 초기화 완료 후 플래그 해제
     setTimeout(() => {
-      isLoadingTemplate.current = false;
-    }, 100);
-  };
-
-  const handleVersionRestore = (version: Version) => {
-    const targetTimestamp = version.timestamp;
-    const step = version.step;
-
-    // 버전 복원 시작 - 에디터 onChange가 documentData를 덮어쓰지 않도록 플래그 설정
-    isRestoringVersion.current = true;
-    isLoadingTemplate.current = true;
-
-    // 1. 선택한 버전의 timestamp 기준으로 각 문서의 해당 시점 상태 복원
-    // 해당 시점에 버전이 없는 문서는 undefined로 설정 (이전 상태 제거)
-    const restoredDocumentData: DocumentData = {
-      title: version.data.title || documentData.title,
-      1: undefined,
-      2: undefined,
-      3: undefined,
-      4: undefined,
-      5: undefined,
-    };
-
-    for (let docStep = 1; docStep <= 5; docStep++) {
-      // 해당 step의 버전들 중 targetTimestamp 이하인 가장 최신 버전 찾기
-      const stepVersions = versions
-        .filter(v => v.step === docStep && v.timestamp <= targetTimestamp)
-        .sort((a, b) => b.timestamp - a.timestamp);
-
-      if (stepVersions.length > 0) {
-        restoredDocumentData[docStep] = stepVersions[0].data[docStep];
-      }
-    }
-
-    // 2. 복원된 모든 문서에서 sharedData 추출하여 한 번에 설정
-    // (비동기 상태 업데이트 문제 방지를 위해 extractData를 직접 호출하지 않음)
-    const newSharedData: Record<string, string> = {};
-    const parser = new DOMParser();
-
-    for (let docStep = 1; docStep <= 5; docStep++) {
-      const content = restoredDocumentData[docStep];
-      if (content) {
-        const doc = parser.parseFromString(content, 'text/html');
-        const fields = doc.querySelectorAll('span[data-field-id]');
-
-        fields.forEach(field => {
-          const key = field.getAttribute('data-field-id');
-          const value = field.textContent;
-          const source = field.getAttribute('data-source');
-
-          if (key && value && value !== `[${key}]` && source !== 'auto') {
-            // 첫 번째로 발견된 유효 값만 저장 (이미 설정된 경우 덮어쓰지 않음)
-            if (!newSharedData[key]) {
-              newSharedData[key] = value;
-            }
-          }
-        });
-      }
-    }
-
-    // 한 번에 sharedData 설정 (이전 데이터 완전 교체)
-    setSharedData(newSharedData);
-
-    // 3. documentData 전체 교체 (이전 상태 무시) - 먼저 상태 설정
-    setDocumentData(restoredDocumentData);
-
-    // 4. UI 상태 업데이트
-    setShowVersionHistory(false);
-    if (step <= 3) {
-      setCurrentStep(step);
-      setStepModes(prev => ({ ...prev, [step]: 'manual' }));
-    } else {
-      setCurrentStep(4);
-      setActiveShippingDoc(step === 4 ? 'CI' : 'PL');
-    }
-
-    // 5. 에디터 리마운트 및 플래그 해제
-    setEditorKey(prev => prev + 1);
-    setTimeout(() => {
-      isRestoringVersion.current = false;
       isLoadingTemplate.current = false;
     }, 100);
   };
@@ -1779,7 +1747,6 @@ export default function DocumentCreationPage({
         isOpen={showVersionHistory}
         onClose={() => setShowVersionHistory(false)}
         versions={versions}
-        currentStep={currentStep}
         onRestore={handleVersionRestore}
       />
 

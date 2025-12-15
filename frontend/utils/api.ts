@@ -58,13 +58,15 @@ export interface UserSearchParams {
   user_role?: 'user' | 'admin';
 }
 
-export interface LoginResponse extends User {}
+export interface LoginResponse extends User { }
 
 export interface Trade {
   trade_id: number;
   title: string;
   status: 'in_progress' | 'completed';
   documents?: Document[];
+  versions?: DocVersion[];
+  latest_version?: DocVersion;
   document_count?: number;
   completed_count?: number;
   created_at: string;
@@ -92,8 +94,14 @@ export interface Document {
 
 export interface DocVersion {
   version_id: number;
-  doc_id: number;
-  content: Record<string, unknown>;
+  trade_id: number;
+  snapshot: Record<number, string>;
+  meta: {
+    savedFromStep: number;
+    savedFromShippingDoc?: string;
+    title: string;
+    createdAt: string;
+  };
   created_at: string;
 }
 
@@ -395,16 +403,26 @@ class ApiClient {
     return () => eventSource.close();
   }
 
+
+
   // ===== Document Versions =====
 
-  async getVersions(docId: number): Promise<DocVersion[]> {
-    return this.request<DocVersion[]>(`/api/documents/versions/?doc_id=${docId}`);
+  async getVersions(tradeId: number): Promise<DocVersion[]> {
+    return this.request<DocVersion[]>(`/api/documents/versions/?trade_id=${tradeId}`);
   }
 
-  async createVersion(docId: number, content: Record<string, unknown>): Promise<DocVersion> {
+  async getDocVersion(versionId: number): Promise<DocVersion> {
+    return this.request<DocVersion>(`/api/documents/versions/${versionId}/`);
+  }
+
+  async createVersion(
+    tradeId: number,
+    snapshot: Record<number, string>,
+    meta: Record<string, any>
+  ): Promise<DocVersion> {
     return this.request<DocVersion>('/api/documents/versions/', {
       method: 'POST',
-      body: JSON.stringify({ doc_id: docId, content }),
+      body: JSON.stringify({ trade_id: tradeId, snapshot, meta }),
     });
   }
 

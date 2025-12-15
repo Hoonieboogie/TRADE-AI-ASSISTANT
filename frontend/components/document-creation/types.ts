@@ -1,7 +1,7 @@
 // types.ts - DocumentCreationPage 공유 타입 정의
 import { PageType, DocumentData } from '../../App';
 import { ContractEditorRef, FieldChange } from '../editor/ContractEditor';
-import { Version } from '../VersionHistorySidebar';
+import { DocVersion } from '../../utils/api';
 
 // Step Mode 타입
 export type StepMode = 'manual' | 'upload' | 'skip' | null;
@@ -24,8 +24,8 @@ export interface DocumentCreationPageProps {
   onSave: (data: DocumentData, step: number, activeShippingDoc?: ShippingDocType | null, isCompleted?: boolean) => void;
   onCreateTrade?: () => Promise<{ tradeId: string; docIds: Record<string, number> } | null>;
   onExit?: (hasChanges: boolean) => Promise<void>;
-  versions?: Version[];
-  onRestore?: (version: Version) => void;
+  versions?: DocVersion[];
+  onRestore?: (version: DocVersion) => void;
   initialActiveShippingDoc?: ShippingDocType | null;
   getDocId?: (step: number, shippingDoc?: ShippingDocType | null) => number | null;
 }
@@ -39,4 +39,4 @@ export const STEP_SHORT_NAMES = [
 ] as const;
 
 // Re-export 자주 사용되는 타입들
-export type { PageType, DocumentData, ContractEditorRef, FieldChange, Version };
+export type { PageType, DocumentData, ContractEditorRef, FieldChange, DocVersion };
