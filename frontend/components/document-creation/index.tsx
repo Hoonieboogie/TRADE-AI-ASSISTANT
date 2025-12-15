@@ -820,39 +820,30 @@ export default function DocumentCreationPage({
   };
 
   const scrollToField = (fieldId: string) => {
-    console.log('[scrollToField] Looking for field:', fieldId);
     if (!editorRef.current) {
-      console.log('[scrollToField] No editor ref');
       return;
     }
 
     // 에디터 DOM에서 해당 필드 찾기
     const editorElement = document.querySelector('.ProseMirror');
     if (!editorElement) {
-      console.log('[scrollToField] No ProseMirror element');
       return;
     }
 
     // React node views don't have data-field-id, so find by text content
     const allFields = editorElement.querySelectorAll('.data-field-node');
-    console.log('[scrollToField] Total fields in editor:', allFields.length);
 
     let targetField: Element | null = null;
 
     for (const field of Array.from(allFields)) {
-      console.log('[scrollToField] Checking field:', field.textContent);
       if (field.textContent === `[${fieldId}]`) {
         targetField = field;
-        console.log('[scrollToField] Found target field!');
         break;
       }
     }
 
     if (targetField) {
-      console.log('[scrollToField] Scrolling to field');
       targetField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      console.log('[scrollToField] Target field not found');
     }
   };
 

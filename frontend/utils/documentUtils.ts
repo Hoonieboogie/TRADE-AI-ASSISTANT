@@ -226,8 +226,6 @@ export function findUnfilledFields(rootElement: HTMLElement): string[] {
   // Instead, we need to look for .data-field-node elements and check their text content
   const fieldNodes = rootElement.querySelectorAll('.data-field-node');
 
-  console.log('[findUnfilledFields] Total field nodes found:', fieldNodes.length);
-
   const unfilledFields: string[] = [];
 
   fieldNodes.forEach(fieldNode => {
@@ -239,8 +237,6 @@ export function findUnfilledFields(rootElement: HTMLElement): string[] {
     if (placeholderMatch) {
       const fieldId = placeholderMatch[1];
 
-      console.log(`[findUnfilledFields] Found placeholder field: ${fieldId}`);
-
       // 선택적 필드(notice) 제외
       if (!fieldId.startsWith('notice')) {
         // Check if disabled by looking for disabled class or opacity
@@ -249,17 +245,10 @@ export function findUnfilledFields(rootElement: HTMLElement): string[] {
 
         if (!isDisabled) {
           unfilledFields.push(fieldId);
-          console.log(`[findUnfilledFields] Added unfilled field: ${fieldId}`);
-        } else {
-          console.log(`[findUnfilledFields] Skipped disabled field: ${fieldId}`);
         }
-      } else {
-        console.log(`[findUnfilledFields] Skipped notice field: ${fieldId}`);
       }
     }
   });
-
-  console.log('[findUnfilledFields] Total unfilled fields:', unfilledFields);
 
   return unfilledFields;
 }
