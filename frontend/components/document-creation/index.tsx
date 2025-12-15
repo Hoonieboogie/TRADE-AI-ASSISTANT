@@ -67,7 +67,6 @@ export default function DocumentCreationPage({
   onCreateTrade,
   onExit,
   versions = [],
-  onRestore,
   initialActiveShippingDoc,
   getDocId
 }: DocumentCreationPageProps) {
@@ -138,6 +137,7 @@ export default function DocumentCreationPage({
 
 
   const isLoadingTemplate = useRef(false); // 템플릿 로딩 중 플래그
+  const isRestoringVersion = useRef(false); // 버전 복원 중 플래그
 
   // Intro Animation State
   const [hasShownIntro, setHasShownIntro] = useState(false);
@@ -229,11 +229,8 @@ export default function DocumentCreationPage({
           let hasChanges = false;
 
           const updateFields = (step: number, fields: string[]) => {
-            let content = newData[step];
-            // Hydrate if missing
-            if (!content) {
-              content = hydrateTemplate(getTemplateForStep(step));
-            }
+            const content = newData[step];
+            // 해당 step에 콘텐츠가 없으면 (버전 복원으로 undefined인 경우 등) 처리하지 않음
             if (!content) return;
 
             const stepDoc = parser.parseFromString(content, 'text/html');
@@ -288,7 +285,7 @@ export default function DocumentCreationPage({
         });
       }
     }
-  }, [documentData[3], hydrateTemplate]);
+  }, [documentData[3], setDocumentData]);
 
   // Helper to check completion status for a specific step
   const getStepCompletionStatus = (stepNumber: number): boolean => {
@@ -324,6 +321,9 @@ export default function DocumentCreationPage({
 
   // Handlers
   const handleStepChange = (newStep: number) => {
+    // Step 변경 시 에디터 초기화로 인한 onChange 무시하기 위해 플래그 설정
+    isLoadingTemplate.current = true;
+
     if (editorRef.current) {
       const content = editorRef.current.getContent();
       let saveKey = -1;
@@ -354,6 +354,11 @@ export default function DocumentCreationPage({
       }
     }
     setCurrentStep(newStep);
+
+    // 에디터 초기화 완료 후 플래그 해제
+    setTimeout(() => {
+      isLoadingTemplate.current = false;
+    }, 100);
   };
 
   const handleSave = () => {
@@ -659,6 +664,11 @@ export default function DocumentCreationPage({
   };
 
   const handleEditorChange = (content: string) => {
+    // 버전 복원 중에는 에디터 변경을 완전히 무시 (복원된 상태 보호)
+    if (isRestoringVersion.current) {
+      return;
+    }
+
     const saveKey = getDocKeyForStep(currentStep);
     if (saveKey !== -1) {
       setDocumentData((prev: DocumentData) => ({
@@ -666,11 +676,9 @@ export default function DocumentCreationPage({
         [saveKey]: content
       }));
 
-      // Mark as modified
-      markStepModified(saveKey);
-
-      // Only set isDirty if not loading template
+      // 템플릿 로딩 중에는 isDirty만 설정하지 않음 (데이터는 저장)
       if (!isLoadingTemplate.current) {
+        markStepModified(saveKey);
         setIsDirty(true);
       }
     }
@@ -682,19 +690,11 @@ export default function DocumentCreationPage({
       await onCreateTrade();
     }
 
-    // Set loading flag to prevent isDirty during template load
-    isLoadingTemplate.current = true;
-
-    // Explicitly reset isDirty to false (template load shouldn't count as changes)
-    setIsDirty(false);
-
     // 프론트엔드 상태 업데이트
     setStepModes(prev => ({ ...prev, [currentStep]: mode }));
 
-    // Reset loading flag after a short delay (template should be loaded by then)
-    setTimeout(() => {
-      isLoadingTemplate.current = false;
-    }, 500);
+    // 템플릿 로드는 변경사항으로 간주하지 않음
+    setIsDirty(false);
 
     // 백엔드 doc_mode 업데이트
     const docId = getDocId?.(currentStep, null);
@@ -847,12 +847,9 @@ export default function DocumentCreationPage({
       const documentsToSync = [1, 2, 3, 4, 5].filter(key => key !== currentDocKey);
 
       documentsToSync.forEach(step => {
-        // Get existing content or template
-        let content = prev[step];
-        if (!content) {
-          // Document doesn't exist yet, use template
-          content = hydrateTemplate(getTemplateForStep(step));
-        }
+        // Get existing content - 콘텐츠가 없는 step은 건너뜀 (버전 복원으로 undefined인 경우 등)
+        const content = prev[step];
+        if (!content) return;
 
         const updatedContent = addRowToDocument(content, fieldIds, `Step ${step}`);
         newData[step] = updatedContent;
@@ -931,25 +928,22 @@ export default function DocumentCreationPage({
       const documentsToSync = [1, 2, 3, 4, 5].filter(key => key !== currentDocKey);
 
       documentsToSync.forEach(step => {
-        // Get existing content or template
-        let content = prev[step];
-        if (!content) {
-          // Document doesn't exist yet, use template
-          content = hydrateTemplate(getTemplateForStep(step));
-        }
+        // Get existing content - 콘텐츠가 없는 step은 건너뜀 (버전 복원으로 undefined인 경우 등)
+        const content = prev[step];
+        if (!content) return;
 
-        if (content) {
-          newData[step] = deleteRowFromDocument(content, fieldIds, `Step ${step}`);
-        } else {
-        }
+        newData[step] = deleteRowFromDocument(content, fieldIds, `Step ${step}`);
       });
 
       return newData;
     });
 
-  }, [currentStep, activeShippingDoc, hydrateTemplate, setDocumentData]);
+  }, [currentStep, activeShippingDoc, setDocumentData]);
 
   const handleShippingDocChange = (doc: ShippingDocType) => {
+    // Shipping doc 변경 시 에디터 초기화로 인한 onChange 무시하기 위해 플래그 설정
+    isLoadingTemplate.current = true;
+
     // Save current doc content before switching
     if (editorRef.current && activeShippingDoc) {
       const content = editorRef.current.getContent();
@@ -958,42 +952,103 @@ export default function DocumentCreationPage({
       extractData(content);
     }
     setActiveShippingDoc(doc);
+
+    // 에디터 초기화 완료 후 플래그 해제
+    setTimeout(() => {
+      isLoadingTemplate.current = false;
+    }, 100);
   };
 
   const handleVersionRestore = (version: Version) => {
-    if (onRestore) {
-      // 먼저 documentData 업데이트 (App.tsx에서 처리)
-      onRestore(version);
-      setShowVersionHistory(false);
+    const targetTimestamp = version.timestamp;
+    const step = version.step;
 
-      const step = version.step;
+    // 버전 복원 시작 - 에디터 onChange가 documentData를 덮어쓰지 않도록 플래그 설정
+    isRestoringVersion.current = true;
+    isLoadingTemplate.current = true;
 
-      // step 설정
-      if (step <= 3) {
-        setCurrentStep(step);
-        setStepModes(prev => ({ ...prev, [step]: 'manual' }));
-      } else {
-        setCurrentStep(4);
-        if (step === 4) setActiveShippingDoc('CI');
-        if (step === 5) setActiveShippingDoc('PL');
+    // 1. 선택한 버전의 timestamp 기준으로 각 문서의 해당 시점 상태 복원
+    // 해당 시점에 버전이 없는 문서는 undefined로 설정 (이전 상태 제거)
+    const restoredDocumentData: DocumentData = {
+      title: version.data.title || documentData.title,
+      1: undefined,
+      2: undefined,
+      3: undefined,
+      4: undefined,
+      5: undefined,
+    };
+
+    for (let docStep = 1; docStep <= 5; docStep++) {
+      // 해당 step의 버전들 중 targetTimestamp 이하인 가장 최신 버전 찾기
+      const stepVersions = versions
+        .filter(v => v.step === docStep && v.timestamp <= targetTimestamp)
+        .sort((a, b) => b.timestamp - a.timestamp);
+
+      if (stepVersions.length > 0) {
+        restoredDocumentData[docStep] = stepVersions[0].data[docStep];
       }
-
-      // documentData 상태 업데이트 후 에디터 리마운트 (React 상태 업데이트는 비동기)
-      setTimeout(() => {
-        setEditorKey(prev => prev + 1);
-      }, 50);
     }
+
+    // 2. 복원된 모든 문서에서 sharedData 추출하여 한 번에 설정
+    // (비동기 상태 업데이트 문제 방지를 위해 extractData를 직접 호출하지 않음)
+    const newSharedData: Record<string, string> = {};
+    const parser = new DOMParser();
+
+    for (let docStep = 1; docStep <= 5; docStep++) {
+      const content = restoredDocumentData[docStep];
+      if (content) {
+        const doc = parser.parseFromString(content, 'text/html');
+        const fields = doc.querySelectorAll('span[data-field-id]');
+
+        fields.forEach(field => {
+          const key = field.getAttribute('data-field-id');
+          const value = field.textContent;
+          const source = field.getAttribute('data-source');
+
+          if (key && value && value !== `[${key}]` && source !== 'auto') {
+            // 첫 번째로 발견된 유효 값만 저장 (이미 설정된 경우 덮어쓰지 않음)
+            if (!newSharedData[key]) {
+              newSharedData[key] = value;
+            }
+          }
+        });
+      }
+    }
+
+    // 한 번에 sharedData 설정 (이전 데이터 완전 교체)
+    setSharedData(newSharedData);
+
+    // 3. documentData 전체 교체 (이전 상태 무시) - 먼저 상태 설정
+    setDocumentData(restoredDocumentData);
+
+    // 4. UI 상태 업데이트
+    setShowVersionHistory(false);
+    if (step <= 3) {
+      setCurrentStep(step);
+      setStepModes(prev => ({ ...prev, [step]: 'manual' }));
+    } else {
+      setCurrentStep(4);
+      setActiveShippingDoc(step === 4 ? 'CI' : 'PL');
+    }
+
+    // 5. 에디터 리마운트 및 플래그 해제
+    setEditorKey(prev => prev + 1);
+    setTimeout(() => {
+      isRestoringVersion.current = false;
+      isLoadingTemplate.current = false;
+    }, 100);
   };
 
   // Calculate doc key for current step
   const currentDocKey = getDocKeyForStep(currentStep);
 
-  // Get initial content for editor (memoized to prevent unnecessary reloads)
+  // Get initial content for editor
+  // editorKey를 의존성에 추가하여 버전 복원 시 재계산되도록 함
   const initialContent = useMemo((): string => {
     if (currentDocKey === -1) return '';
     const content = documentData[currentDocKey] || hydrateTemplate(getTemplateForStep(currentDocKey));
     return updateContentWithSharedData(content);
-  }, [currentDocKey, documentData[currentDocKey], sharedData]);
+  }, [currentDocKey, documentData[currentDocKey], sharedData, editorKey]);
 
   const renderStepHeaderControls = () => {
     // 1. Left Side Content (Back Button)
@@ -1215,6 +1270,7 @@ export default function DocumentCreationPage({
         stepModes={stepModes}
         activeShippingDoc={activeShippingDoc}
         editorRef={editorRef}
+        editorKey={editorKey}
         initialContent={initialContent || getTemplateForStep(currentStep === 4 ? (activeShippingDoc === 'CI' ? 4 : 5) : currentStep)}
         onBack={() => {
           if (currentStep === 4 && activeShippingDoc) {
