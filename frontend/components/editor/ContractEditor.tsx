@@ -1458,8 +1458,20 @@ const ContractEditor = forwardRef<ContractEditorRef, ContractEditorProps>(
 
         useEffect(() => {
             if (editor && initialContent !== undefined && !hasInitialized.current) {
+                // [실험 2A] initialContent의 <tr> 개수
+                const e2a_trCount = (initialContent.match(/<tr/g) || []).length;
+                console.log('[E2A] initialContent trCount =', e2a_trCount);
+                console.log('[E2C] hasInitialized.current =', hasInitialized.current);
+
                 // Only set content on initial mount of this editor instance
                 editor.commands.setContent(initialContent);
+
+                // [실험 2B] setContent 후 editor HTML의 <tr> 개수
+                setTimeout(() => {
+                    const editorHTML = editor.getHTML();
+                    const e2b_trCount = (editorHTML.match(/<tr/g) || []).length;
+                    console.log('[E2B] editorHTML trCount (after setContent) =', e2b_trCount);
+                }, 100);
 
                 // [ADDED] Synchronize conditional fields based on radio button state
                 // This ensures that loaded documents correctly reflect the disabled state of fields

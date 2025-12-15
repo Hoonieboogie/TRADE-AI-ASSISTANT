@@ -88,7 +88,278 @@ export default function DocumentCreationPage({
   } = useFileUpload(
     documentData.uploadedFileNames as Record<number, string>,
     documentData.uploadedFileUrls as Record<number, string>,
-    documentData.uploadedConvertedPdfUrls as Record<number, string>
+    documentData.uploadedConvertedPdfUrls as Record<number, string>,
+    {
+      onTemplateDataExtracted: (step, templateData) => {
+        console.log('=== Template Data Extracted ===');
+        console.log('Template type:', templateData.template_type);
+        console.log('Row count:', templateData.row_count);
+        console.log('Fields:', templateData.fields);
+        console.log('Table rows:', templateData.table_rows);
+
+        // 자동 계산 필드 목록 (절대 직접 주입 금지!)
+        const AUTO_CALCULATED_FIELDS = ['sub_total_price', 'total_price', 'total_net_weight', 'total_gross_weight', 'total_measurement'];
+
+        // ===== [0단계] HTML 선생성 (CRITICAL: 행 추가 전 필수) =====
+        // documentData는 lazy 구조이므로 방문하지 않은 Step은 undefined
+        // 행 추가를 위해 모든 Step의 HTML을 미리 생성
+        setDocumentData((prevData: DocumentData) => {
+          const newData = { ...prevData };
+
+          // 템플릿 가져오기 함수
+          const getTemplateForStep = (step: number): string => {
+            switch (step) {
+              case 1: return offerSheetTemplateHTML;
+              case 2: return proformaInvoiceTemplateHTML;
+              case 3: return saleContractTemplateHTML;
+              case 4: return commercialInvoiceTemplateHTML;
+              case 5: return packingListTemplateHTML;
+              default: return offerSheetTemplateHTML;
+            }
+          };
+
+          // 모든 Step(1~5)에 대해 HTML이 없으면 생성
+          [1, 2, 3, 4, 5].forEach(step => {
+            if (typeof newData[step] !== 'string') {
+              newData[step] = hydrateTemplate(getTemplateForStep(step));
+              console.log(`[Step 0] Pre-generated HTML for document ${step}`);
+            }
+          });
+
+          console.log('[Step 0] HTML pre-generation complete');
+          return newData;
+        });
+
+        // ===== [1단계] 테이블 행 자동 생성 (모든 문서 직접 업데이트) =====
+        const rowCount = templateData.row_count;
+        if (rowCount > 1) {
+          // HTML 생성이 완료될 때까지 대기 후 실행
+          setTimeout(() => {
+            console.log(`[Step 1] Generating ${rowCount - 1} additional rows for ALL documents...`);
+
+            // 모든 문서에 대해 행 추가
+            setDocumentData((prevData: DocumentData) => {
+              // [증거 수집] prevData 구조 확인
+              console.log('[EVIDENCE] typeof prevData:', typeof prevData);
+              console.log('[EVIDENCE] prevData keys:', Object.keys(prevData));
+              console.log('[EVIDENCE] prevData[1]:', prevData[1]);
+              console.log('[EVIDENCE] typeof prevData[1]:', typeof prevData[1]);
+              console.log('[EVIDENCE] prevData[2]:', prevData[2]);
+              console.log('[EVIDENCE] typeof prevData[2]:', typeof prevData[2]);
+
+              const newData = { ...prevData };
+
+              // 각 추가 행에 대해
+              for (let rowIndex = 1; rowIndex < rowCount; rowIndex++) {
+                const rowData = templateData.table_rows[rowIndex];
+                const fieldIds = Object.keys(rowData);
+
+                console.log(`[Row ${rowIndex + 1}] Adding to all documents with fields:`, fieldIds);
+
+                // 모든 문서 타입에 대해 행 추가
+                [1, 2, 3, 4, 5].forEach(docKey => {
+                  const content = newData[docKey];
+                  if (typeof content !== 'string') return;
+
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(content, 'text/html');
+
+                  // 템플릿 행 찾기
+                  const tables = doc.querySelectorAll('table');
+                  let templateRow: HTMLElement | null = null;
+
+                  for (const table of Array.from(tables)) {
+                    const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+                    for (let i = rows.length - 1; i >= 0; i--) {
+                      const row = rows[i];
+                      const dataFields = row.querySelectorAll('[data-field-id]');
+                      const text = row.textContent || '';
+
+                      let hasItemField = false;
+                      dataFields.forEach(field => {
+                        const fid = field.getAttribute('data-field-id') || '';
+                        if (fid.startsWith('item_no') || fid.startsWith('unit_price') ||
+                          fid.startsWith('quantity') || fid.startsWith('description') ||
+                          fid.startsWith('sub_total_price') || fid.startsWith('marks_and_numbers')) {
+                          hasItemField = true;
+                        }
+                      });
+
+                      const isTotalRow = text.includes('Total ') || text.includes('TOTAL :');
+
+                      if (hasItemField && dataFields.length >= 3 && !isTotalRow) {
+                        templateRow = row as HTMLElement;
+                        break;
+                      }
+                    }
+
+                    if (templateRow) break;
+                  }
+
+                  if (!templateRow) {
+                    console.warn(`[Doc ${docKey}] No template row found`);
+                    return;
+                  }
+
+                  // 기존 필드 ID 수집
+                  const existingFieldIds = new Set<string>();
+                  const allFields = doc.querySelectorAll('[data-field-id]');
+                  allFields.forEach((f: Element) => {
+                    const id = f.getAttribute('data-field-id');
+                    if (id) existingFieldIds.add(id);
+                  });
+
+                  // 새 행 생성
+                  const newRow = templateRow.cloneNode(true) as HTMLElement;
+
+                  // 필드 ID 매핑
+                  const fieldMap = new Map<string, string>();
+                  fieldIds.forEach(fieldId => {
+                    const baseName = fieldId.replace(/_\d+$/, '');
+                    fieldMap.set(baseName, fieldId);
+                  });
+
+                  // 다음 사용 가능한 필드 ID 생성
+                  const getNextFieldId = (baseName: string): string => {
+                    let counter = 2;
+                    let newId = `${baseName}_${counter}`;
+                    while (existingFieldIds.has(newId)) {
+                      counter++;
+                      newId = `${baseName}_${counter}`;
+                    }
+                    existingFieldIds.add(newId);
+                    return newId;
+                  };
+
+                  // 새 행의 필드 ID 교체
+                  const dataFields = newRow.querySelectorAll('[data-field-id]');
+                  dataFields.forEach((field) => {
+                    const currentFieldId = field.getAttribute('data-field-id');
+                    if (currentFieldId) {
+                      const baseName = currentFieldId.replace(/_\d+$/, '');
+                      let newFieldId = fieldMap.get(baseName);
+
+                      if (!newFieldId) {
+                        newFieldId = getNextFieldId(baseName);
+                      }
+
+                      field.setAttribute('data-field-id', newFieldId);
+                      field.setAttribute('data-source', '');
+                      field.textContent = `[${newFieldId}]`;
+                    }
+                  });
+
+                  // 행 삽입
+                  const tbody = templateRow.parentElement;
+                  if (tbody) {
+                    tbody.insertBefore(newRow, templateRow.nextSibling);
+                  }
+
+                  // 업데이트된 HTML 저장
+                  newData[docKey] = doc.body.innerHTML;
+                  console.log(`[Doc ${docKey}] Row ${rowIndex + 1} added successfully`);
+                });
+              }
+
+              console.log(`[Step 1] Complete: ${rowCount - 1} rows added to all documents`);
+
+              // [실험 1A] 행 생성 직후 newData의 <tr> 개수
+              const e1a_trCounts = {
+                1: ((newData[1] as string || '').match(/<tr/g) || []).length,
+                2: ((newData[2] as string || '').match(/<tr/g) || []).length,
+                3: ((newData[3] as string || '').match(/<tr/g) || []).length,
+                4: ((newData[4] as string || '').match(/<tr/g) || []).length,
+                5: ((newData[5] as string || '').match(/<tr/g) || []).length,
+              };
+              console.log('[E1A] AFTER row-generation newData trCounts:', e1a_trCounts);
+
+              return newData;
+            });
+          }, 100); // HTML 생성 완료 대기
+        }
+
+        // ===== [2단계] sharedData 업데이트 (자동 계산 필드 제외) =====
+        setTimeout(() => {
+          console.log('[Step 2] Updating sharedData...');
+
+          const newSharedData: Record<string, string> = {};
+
+          // 일반 필드 추가
+          Object.entries(templateData.fields).forEach(([key, value]: [string, any]) => {
+            const baseKey = key.replace(/_\d+$/, '');
+            if (!AUTO_CALCULATED_FIELDS.includes(baseKey)) {
+              newSharedData[key] = value as string;
+            } else {
+              console.log(`Skipping auto-calculated field: ${key}`);
+            }
+          });
+
+          // 테이블 행 데이터 추가 (자동 계산 필드 제외)
+          templateData.table_rows.forEach((row: Record<string, string>) => {
+            Object.entries(row).forEach(([key, value]) => {
+              const baseKey = key.replace(/_\d+$/, '');
+              if (!AUTO_CALCULATED_FIELDS.includes(baseKey)) {
+                newSharedData[key] = value;
+              } else {
+                console.log(`Skipping auto-calculated field: ${key}`);
+              }
+            });
+          });
+
+          console.log('[Step 2] SharedData to inject:', newSharedData);
+          setSharedData(prev => ({ ...prev, ...newSharedData }));
+
+          // ===== [3단계] 모든 문서에 데이터 매핑 =====
+          setTimeout(() => {
+            console.log('[Step 3] Mapping data to all documents...');
+
+            setDocumentData((prev: DocumentData) => {
+              // [실험 1B] 세 번째 setDocumentData의 prev 상태
+              const e1b_trCounts = {
+                1: ((prev[1] as string || '').match(/<tr/g) || []).length,
+                2: ((prev[2] as string || '').match(/<tr/g) || []).length,
+                3: ((prev[3] as string || '').match(/<tr/g) || []).length,
+                4: ((prev[4] as string || '').match(/<tr/g) || []).length,
+                5: ((prev[5] as string || '').match(/<tr/g) || []).length,
+              };
+              console.log('[E1B] BEFORE mapping prev trCounts:', e1b_trCounts);
+
+              const newData = { ...prev };
+
+              // 모든 문서에 sharedData 적용
+              Object.keys(newData).forEach(key => {
+                const docKey = Number(key);
+                if (isNaN(docKey) || key === 'title') return;
+
+                const content = newData[docKey];
+                if (typeof content === 'string') {
+                  const updated = updateContentWithSharedData(content);
+                  if (updated !== content) {
+                    newData[docKey] = updated;
+                    console.log(`Document ${docKey} updated`);
+                  }
+                }
+              });
+
+              console.log('[Step 3] Complete: All documents mapped');
+
+              // [실험 1C] 매핑 후 newData의 <tr> 개수
+              const e1c_trCounts = {
+                1: ((newData[1] as string || '').match(/<tr/g) || []).length,
+                2: ((newData[2] as string || '').match(/<tr/g) || []).length,
+                3: ((newData[3] as string || '').match(/<tr/g) || []).length,
+                4: ((newData[4] as string || '').match(/<tr/g) || []).length,
+                5: ((newData[5] as string || '').match(/<tr/g) || []).length,
+              };
+              console.log('[E1C] AFTER mapping newData trCounts:', e1c_trCounts);
+
+              return newData;
+            });
+          }, 100);
+        }, 200); // HTML 생성 + 행 추가 완료 대기
+      }
+    }
   );
 
   const {

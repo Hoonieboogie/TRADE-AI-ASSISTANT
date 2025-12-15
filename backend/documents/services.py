@@ -339,16 +339,26 @@ def process_uploaded_document(document_id: int):
         if not chunks:
             raise ValueError("No valid content extracted from document")
 
-        # 4. 텍스트 저장 (미리보기용)
+        # 4. 템플릿 데이터 추출 (템플릿 문서인 경우)
+        from agent_core.template_extractor import extract_template_data
+        template_data = extract_template_data(chunks, document.original_filename)
+        
+        if template_data:
+            # 템플릿 데이터를 JSON으로 저장
+            import json
+            document.template_data = json.dumps(template_data, ensure_ascii=False)
+            logger.info(f"Template data extracted: {template_data.get('template_type')} with {template_data.get('row_count', 0)} rows")
+        
+        # 5. 텍스트 저장 (미리보기용)
         full_text = "\n\n".join([chunk['text'] for chunk in chunks])
         document.extracted_text = full_text
-        document.save(update_fields=['extracted_text'])
+        document.save(update_fields=['extracted_text', 'template_data'])
 
-        # 5. 임베딩 생성 (배치 처리)
+        # 6. 임베딩 생성 (배치 처리)
         texts = [chunk['text'] for chunk in chunks]
         embeddings = generate_embeddings_batch(texts)
 
-        # 6. Qdrant 저장
+        # 7. Qdrant 저장
         points = []
         import json
         

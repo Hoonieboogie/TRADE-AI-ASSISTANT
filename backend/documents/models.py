@@ -251,6 +251,13 @@ class Document(models.Model):
         help_text="RAG용 벡터 ID 목록"
     )
 
+    # 템플릿 데이터 (업로드된 템플릿 문서의 필드 및 테이블 데이터)
+    template_data = models.TextField(
+        null=True,
+        blank=True,
+        help_text="템플릿 문서에서 추출된 구조화된 데이터 (JSON)"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

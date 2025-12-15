@@ -32,6 +32,13 @@ export interface DocumentStatus {
   converted_pdf_url?: string;
   total_chunks?: number;
   error?: string;
+  template_data?: {
+    is_template: boolean;
+    template_type: string;
+    fields: Record<string, string>;
+    table_rows: Array<Record<string, string>>;
+    row_count: number;
+  };
 }
 
 export interface StatusStreamCallbacks {

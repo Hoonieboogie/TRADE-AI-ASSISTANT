@@ -804,7 +804,8 @@ class DocumentProcessingStatusView(View):
                     document.s3_url = new_url
                     document.save()
 
-                    status_data['message'] = '처리 완료!'
+                    status_data['type'] = 'complete'
+                    status_data['message'] = '문서 처리 완료'
                     status_data['progress'] = 100
                     status_data['s3_url'] = new_url
                     status_data['total_chunks'] = len(document.qdrant_point_ids)
@@ -818,8 +819,18 @@ class DocumentProcessingStatusView(View):
                         document.converted_pdf_url = converted_pdf_url
                         document.save(update_fields=['converted_pdf_url'])
                         status_data['converted_pdf_url'] = converted_pdf_url
+                    
+                    # 템플릿 데이터 추가 (템플릿 문서인 경우)
+                    if document.template_data:
+                        try:
+                            import json
+                            template_data = json.loads(document.template_data)
+                            status_data['template_data'] = template_data
+                            logger.info(f"Sending template_data to frontend: {template_data.get('template_type')} with {template_data.get('row_count', 0)} rows")
+                        except json.JSONDecodeError as e:
+                            logger.error(f"Failed to parse template_data: {e}")
 
-                    yield f"data: {json.dumps({'type': 'complete', **status_data})}\n\n"
+                    yield f"data: {json.dumps(status_data)}\n\n"
                     return
 
                 elif document.upload_status == 'error':

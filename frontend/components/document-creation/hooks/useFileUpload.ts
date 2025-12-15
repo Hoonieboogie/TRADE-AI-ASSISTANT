@@ -44,10 +44,15 @@ interface UseFileUploadReturn {
   retryUpload: (step: number) => void;
 }
 
+interface UseFileUploadOptions {
+  onTemplateDataExtracted?: (step: number, templateData: any) => void;
+}
+
 export function useFileUpload(
   initialFileNames: Record<number, string> = {},
   initialFileUrls: Record<number, string> = {},
-  initialConvertedPdfUrls: Record<number, string> = {}
+  initialConvertedPdfUrls: Record<number, string> = {},
+  options: UseFileUploadOptions = {}
 ): UseFileUploadReturn {
   // 초기 파일명이 있는 step은 'ready' 상태로 초기화
   const initialStatus = Object.keys(initialFileNames).reduce((acc, key) => {
@@ -94,6 +99,11 @@ export function useFileUpload(
           setUploadedDocumentUrls(prev => ({ ...prev, [step]: status.s3_url || null }));
           if (status.converted_pdf_url) {
             setUploadedConvertedPdfUrls(prev => ({ ...prev, [step]: status.converted_pdf_url || null }));
+          }
+
+          // 템플릿 데이터 처리
+          if (status.template_data?.is_template && options.onTemplateDataExtracted) {
+            options.onTemplateDataExtracted(step, status.template_data);
           }
         },
         onError: (error: string) => {
