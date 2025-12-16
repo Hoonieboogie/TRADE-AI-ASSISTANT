@@ -8,19 +8,21 @@ import ChatSidebar from './chat-sidebar/ChatSidebar';
 import { GenChat, GenMessage, useChatList } from './chat-sidebar/useChatList';
 import { User as UserType } from '../utils/api';
 
-// 미디어 쿼리 훅
+// 미디어 쿼리 훅 - 초기값을 바로 실제 값으로 설정
 function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(false);
+  const [matches, setMatches] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia(query).matches;
+    }
+    return false;
+  });
 
   useEffect(() => {
     const media = window.matchMedia(query);
-    if (media.matches !== matches) {
-      setMatches(media.matches);
-    }
-    const listener = () => setMatches(media.matches);
+    const listener = (e: MediaQueryListEvent) => setMatches(e.matches);
     media.addEventListener('change', listener);
     return () => media.removeEventListener('change', listener);
-  }, [matches, query]);
+  }, [query]);
 
   return matches;
 }
@@ -107,15 +109,20 @@ export default function ChatPage({ onNavigate, onLogoClick, userEmployeeId, onLo
   const streamingSessionRef = useRef<number>(0);  // 현재 스트리밍 세션 ID (고유값)
   const currentSessionRef = useRef<number>(0);  // 현재 활성 세션 ID (채팅 전환 시 증가)
 
-  // 사이드바 상태
+  // 사이드바 상태 - 데스크톱이면 처음부터 열림
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);  // 초기값 false, useEffect에서 설정
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(min-width: 1024px)').matches;
+    }
+    return false;
+  });
 
   // 채팅 목록 훅 - ChatPage가 소유하고 ChatSidebar에 전달
   const chatListHook = useChatList(userEmployeeId);
   const { loadMessages, addChatToList, bringChatToTop } = chatListHook;
 
-  // 화면 크기에 따라 사이드바 초기 상태 설정
+  // 화면 크기 변경 시 사이드바 상태 동기화
   useEffect(() => {
     setIsSidebarOpen(isDesktop);
   }, [isDesktop]);
