@@ -89,7 +89,8 @@ export default function DocumentCreationPage({
     uploadedConvertedPdfUrls,
     handleFileUpload,
     removeUploadedFile,
-    retryUpload
+    retryUpload,
+    restoreUploadState
   } = useFileUpload(
     documentData.uploadedFileNames as Record<number, string>,
     documentData.uploadedFileUrls as Record<number, string>,
@@ -1482,14 +1483,41 @@ export default function DocumentCreationPage({
     // 3. documentData 전체 교체 (이전 상태 무시) - 먼저 상태 설정
     setDocumentData(restoredDocumentData);
 
-    // 4. UI 상태 업데이트
+    // 4. UI 상태 업데이트 - 버전 타입에 따라 분기
     setShowVersionHistory(false);
+
     if (step <= 3) {
       setCurrentStep(step);
-      setStepModes(prev => ({ ...prev, [step]: 'manual' }));
+
+      // 버전 타입에 따라 모드 설정
+      if (version.isUpload && version.uploadInfo) {
+        // 업로드 버전 복원
+        setStepModes(prev => ({ ...prev, [step]: 'upload' }));
+        restoreUploadState(step, {
+          filename: version.uploadInfo.filename,
+          s3_url: version.uploadInfo.s3_url,
+          convertedPdfUrl: version.uploadInfo.convertedPdfUrl,
+        });
+      } else {
+        // 에디터 버전 복원
+        setStepModes(prev => ({ ...prev, [step]: 'manual' }));
+      }
     } else {
+      // Step 4 (CI/PL)
       setCurrentStep(4);
       setActiveShippingDoc(step === 4 ? 'CI' : 'PL');
+
+      // Step 4도 버전 타입에 따라 분기
+      if (version.isUpload && version.uploadInfo) {
+        setStepModes(prev => ({ ...prev, [4]: 'upload' }));
+        restoreUploadState(step, {
+          filename: version.uploadInfo.filename,
+          s3_url: version.uploadInfo.s3_url,
+          convertedPdfUrl: version.uploadInfo.convertedPdfUrl,
+        });
+      } else {
+        setStepModes(prev => ({ ...prev, [4]: 'manual' }));
+      }
     }
 
     // 5. 에디터 리마운트 및 플래그 해제

@@ -31,6 +31,12 @@ function toUserFriendlyError(error: string): string {
   return '파일 업로드에 실패했습니다. 다시 시도해주세요.';
 }
 
+interface RestoreUploadData {
+  filename: string;
+  s3_url: string;
+  convertedPdfUrl?: string;
+}
+
 interface UseFileUploadReturn {
   uploadedFiles: Record<number, File | null>;
   uploadedFileNames: Record<number, string>;
@@ -42,6 +48,7 @@ interface UseFileUploadReturn {
   handleFileUpload: (step: number, file: File, docId: number) => Promise<void>;
   removeUploadedFile: (step: number) => void;
   retryUpload: (step: number) => void;
+  restoreUploadState: (step: number, data: RestoreUploadData) => void;
 }
 
 interface UseFileUploadOptions {
@@ -156,6 +163,15 @@ export function useFileUpload(
     }
   }, [uploadedFiles, handleFileUpload]);
 
+  // 버전 복원 시 업로드 상태 설정
+  const restoreUploadState = useCallback((step: number, data: RestoreUploadData) => {
+    setUploadedFileNames(prev => ({ ...prev, [step]: data.filename }));
+    setUploadedDocumentUrls(prev => ({ ...prev, [step]: data.s3_url }));
+    setUploadedConvertedPdfUrls(prev => ({ ...prev, [step]: data.convertedPdfUrl || null }));
+    setUploadStatus(prev => ({ ...prev, [step]: 'ready' }));
+    setUploadError(prev => ({ ...prev, [step]: null }));
+  }, []);
+
   return {
     uploadedFiles,
     uploadedFileNames,
@@ -167,5 +183,6 @@ export function useFileUpload(
     handleFileUpload,
     removeUploadedFile,
     retryUpload,
+    restoreUploadState,
   };
 }

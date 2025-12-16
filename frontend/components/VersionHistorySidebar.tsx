@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Clock, RotateCcw, Filter, ChevronDown, Check, Calendar } from 'lucide-react';
+import { X, Clock, RotateCcw, Filter, ChevronDown, Check, Calendar, Upload, FileText } from 'lucide-react';
 import { DocumentData } from '../App';
+
+export interface UploadInfo {
+  s3_key: string;
+  s3_url: string;
+  filename: string;
+  convertedPdfUrl?: string;
+}
 
 export interface Version {
   id: string;
   timestamp: number;
   data: DocumentData;
   step: number;
+  isUpload?: boolean;
+  uploadInfo?: UploadInfo;
 }
 
 interface VersionHistorySidebarProps {
@@ -228,16 +237,37 @@ export default function VersionHistorySidebar({
                         </div>
                       </div>
 
-                      <div className="mb-4 p-3 bg-gray-50 rounded-xl border border-gray-100 group-hover:bg-blue-50/30 group-hover:border-blue-100/50 transition-colors">
+                      <div className={`mb-4 p-3 rounded-xl border transition-colors ${
+                        version.isUpload
+                          ? 'bg-amber-50 border-amber-200 group-hover:bg-amber-100/50'
+                          : 'bg-gray-50 border-gray-100 group-hover:bg-blue-50/30 group-hover:border-blue-100/50'
+                      }`}>
                         <div className="flex items-center gap-2 mb-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                          <p className="text-sm font-semibold text-gray-700">
-                            {getTemplateName(version.step)}
-                          </p>
+                          {version.isUpload ? (
+                            <>
+                              <Upload className="w-4 h-4 text-amber-600" />
+                              <p className="text-sm font-semibold text-amber-700">
+                                업로드된 문서
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="w-4 h-4 text-blue-500" />
+                              <p className="text-sm font-semibold text-gray-700">
+                                {getTemplateName(version.step)}
+                              </p>
+                            </>
+                          )}
                         </div>
-                        <p className="text-xs text-gray-500 pl-3.5 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {formatActualDate(version.timestamp)}
+                        <p className="text-xs text-gray-500 pl-6 flex items-center gap-1">
+                          {version.isUpload ? (
+                            <span className="truncate max-w-[200px]">{version.uploadInfo?.filename}</span>
+                          ) : (
+                            <>
+                              <Calendar className="w-3 h-3" />
+                              {formatActualDate(version.timestamp)}
+                            </>
+                          )}
                         </p>
                       </div>
 
