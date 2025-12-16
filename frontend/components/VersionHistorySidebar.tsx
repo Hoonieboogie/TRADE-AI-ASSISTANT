@@ -220,21 +220,14 @@ export default function VersionHistorySidebar({
                     <div className="absolute left-0 top-6 w-4 h-4 rounded-full border-[3px] border-white bg-gray-300 group-hover:bg-blue-500 group-hover:scale-110 transition-all shadow-sm z-10" />
 
                     <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-lg hover:border-blue-100 transition-all duration-300 group-hover:-translate-y-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold tracking-wider uppercase border border-blue-100">
-                              Version {versions.length - versions.indexOf(version)}
-                            </span>
-                            <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {formatTimeAgo(version.timestamp)}
-                            </span>
-                          </div>
-                          <h3 className="font-bold text-gray-900 text-base leading-tight">
-                            {version.data.title || '제목 없음'}
-                          </h3>
-                        </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold tracking-wider uppercase border border-blue-100">
+                          Version {versions.length - versions.indexOf(version)}
+                        </span>
+                        <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatTimeAgo(version.timestamp)}
+                        </span>
                       </div>
 
                       <div className={`mb-4 p-3 rounded-xl border transition-colors ${

@@ -1557,7 +1557,7 @@ export default function DocumentCreationPage({
     if ((currentStep === 1 || currentStep === 3) && stepModes[currentStep]) {
       leftContent = (
         <button
-          onClick={() => {
+          onClick={async () => {
             // 업로드 상태 리셋
             removeUploadedFile(currentStep);
 
@@ -1565,7 +1565,7 @@ export default function DocumentCreationPage({
             setSharedData({});
 
             // 모든 step의 documentData 초기화 (업로드에서 매핑된 값 제거)
-            setDocumentData(prev => ({
+            setDocumentData((prev: DocumentData) => ({
               title: prev.title,
               1: undefined,
               2: undefined,
@@ -1576,6 +1576,19 @@ export default function DocumentCreationPage({
 
             // 모드 전환
             setStepModes(prev => ({ ...prev, [currentStep]: null }));
+
+            // 백엔드 upload_status 초기화 (MainPage에서 접근 가능 여부 판단에 사용)
+            const docId = getDocId?.(currentStep, null);
+            if (docId) {
+              try {
+                const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
+                await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ upload_status: null, doc_mode: null })
+                });
+              } catch { /* ignore */ }
+            }
           }}
           className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors px-4 py-2 rounded-lg hover:bg-gray-100"
         >
@@ -1764,7 +1777,21 @@ export default function DocumentCreationPage({
             }
           }}
           onRetry={() => retryUpload(currentStep)}
-          onReset={() => removeUploadedFile(currentStep)}
+          onReset={async () => {
+            removeUploadedFile(currentStep);
+            // 백엔드 upload_status 초기화
+            const docId = getDocId?.(currentStep, null);
+            if (docId) {
+              try {
+                const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
+                await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ upload_status: null })
+                });
+              } catch { /* ignore */ }
+            }
+          }}
         />
       );
     }
