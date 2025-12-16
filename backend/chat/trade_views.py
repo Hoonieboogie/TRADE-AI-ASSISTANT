@@ -844,24 +844,79 @@ class DocumentChatStreamView(View):
         doc_type_display_val = await sync_to_async(document.get_doc_type_display)()
         extracted_text = await sync_to_async(lambda: document.extracted_text)()
 
+        # 이전 step 문서 내용 수집 (Agent 시스템 프롬프트에 포함)
+        prev_doc_contents = []
+        doc_type_names = {
+            'offer': 'Offer Sheet', 'pi': 'Proforma Invoice', 'contract': 'Sales Contract',
+            'ci': 'Commercial Invoice', 'pl': 'Packing List'
+        }
+
+        try:
+            @sync_to_async
+            def get_sibling_docs():
+                return [{
+                    'doc_type': doc.doc_type,
+                    'doc_mode': doc.doc_mode,
+                    'extracted_text': doc.extracted_text,
+                    'latest_content': (DocVersion.objects.filter(doc=doc).order_by('-created_at').first() or type('', (), {'content': None})()).content
+                } for doc in Document.objects.filter(trade_id=trade_id).exclude(doc_id=doc_id)]
+
+            processed_types = set()
+            for sib in await get_sibling_docs():
+                if sib['doc_type'] in processed_types:
+                    continue
+
+                text_content = None
+                mode_label = ""
+
+                # 업로드 모드: extracted_text 사용
+                if sib['doc_mode'] == 'upload' and sib['extracted_text']:
+                    text_content = sib['extracted_text'].strip()
+                    mode_label = "(업로드)"
+                # 직접작성 모드: 프론트엔드 데이터 우선, 없으면 DB
+                else:
+                    if prev_documents and sib['doc_type'] in prev_documents:
+                        content = prev_documents[sib['doc_type']].get('content', '') if prev_documents[sib['doc_type']] else ''
+                        if content and content.strip():
+                            text_content = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', content)).strip()
+                            mode_label = "(직접작성)"
+
+                    if not text_content and sib['latest_content']:
+                        html = sib['latest_content'].get('html', '') or sib['latest_content'].get('html_content', '') if isinstance(sib['latest_content'], dict) else str(sib['latest_content'])
+                        if html and html.strip():
+                            text_content = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', html)).strip()
+                            mode_label = "(직접작성)"
+
+                if text_content:
+                    prev_doc_contents.append(f"[{doc_type_names.get(sib['doc_type'], sib['doc_type'])} {mode_label}]\n{text_content}")
+                    processed_types.add(sib['doc_type'])
+
+        except Exception as e:
+            logger.error(f"이전 문서 조회 오류: {e}")
+
+        prev_docs_content_str = "\n\n".join(prev_doc_contents) if prev_doc_contents else None
+
+        # Agent 생성 (이전 문서 내용을 시스템 프롬프트에 포함)
         if doc_mode == 'upload' and upload_status == 'ready':
             agent = get_read_document_agent(
                 document_id=document.doc_id,
                 document_name=original_filename or f"문서_{document.doc_id}",
                 document_type=doc_type_display_val,
                 prompt_version=PROMPT_VERSION,
-                prompt_label=PROMPT_LABEL
+                prompt_label=PROMPT_LABEL,
+                prev_docs_content=prev_docs_content_str
             )
-            logger.info(f"📄 업로드 모드: Document Reader Assistant 사용 (doc_id={doc_id}, filename={original_filename})")
+            logger.info(f"업로드 모드 Agent 사용 (doc_id={doc_id}, prev_docs={len(prev_doc_contents)}개)")
         else:
             agent = get_document_writing_agent(
                 document_content=document_content,
                 prompt_version=PROMPT_VERSION,
-                prompt_label=PROMPT_LABEL
+                prompt_label=PROMPT_LABEL,
+                prev_docs_content=prev_docs_content_str
             )
-            logger.info(f"✏️ 작성 모드: Document Writing Assistant 사용 (doc_id={doc_id})")
+            logger.info(f"작성 모드 Agent 사용 (doc_id={doc_id}, prev_docs={len(prev_doc_contents)}개)")
 
-        # 에이전트 정보 전송 (브라우저 콘솔 디버깅용)
+        # 에이전트 정보 전송
         agent_info = {
             'name': agent.name,
             'model': agent.model,
@@ -869,117 +924,24 @@ class DocumentChatStreamView(View):
             'tools': [tool.__name__ if hasattr(tool, '__name__') else str(tool) for tool in agent.tools]
         }
         yield f"data: {json.dumps({'type': 'agent_info', 'agent': agent_info})}\n\n"
-        logger.info(f"🤖 Agent 정보: {agent_info}")
 
+        # 컨텍스트 구성
         enhanced_input = message
         context_parts = []
 
-        # 현재 문서 내용 컨텍스트 추가
-        current_doc_text = None
-        current_doc_mode_label = ""
-        doc_type = await sync_to_async(lambda: document.doc_type)()
-
-        if document_content and document_content.strip():
-            current_doc_text = re.sub(r'<[^>]+>', ' ', document_content)
-            current_doc_text = re.sub(r'\s+', ' ', current_doc_text).strip()
-            current_doc_mode_label = "(직접작성)"
-        elif doc_mode == 'upload' and extracted_text:
-            current_doc_text = extracted_text.strip()
-            current_doc_mode_label = "(업로드)"
-            logger.info(f"📄 현재 문서 업로드 모드: extracted_text 사용, {len(current_doc_text)}자")
-
-        if current_doc_text:
-            context_parts.append(f"[현재 {doc_type} 문서 내용 {current_doc_mode_label}]\n{current_doc_text[:2000]}")
-            logger.info(f"✅ 현재 문서 내용 {len(current_doc_text)}자 컨텍스트에 추가 {current_doc_mode_label}")
-
         # 이전 step 문서 내용 참조
-        prev_doc_contents = []
-        doc_type_display = {
-            'offer': 'Offer Sheet',
-            'pi': 'Proforma Invoice',
-            'contract': 'Sales Contract',
-            'ci': 'Commercial Invoice',
-            'pl': 'Packing List'
-        }
-
-        # 이전 문서 조회 (현재 문서 제외)
-        try:
-            @sync_to_async
-            def get_sibling_docs_info():
-                sibling_docs = list(Document.objects.filter(trade_id=trade_id).exclude(doc_id=doc_id))
-                results = []
-                for sibling_doc in sibling_docs:
-                    latest_ver = DocVersion.objects.filter(doc=sibling_doc).order_by('-created_at').first()
-                    results.append({
-                        'doc_type': sibling_doc.doc_type,
-                        'doc_mode': sibling_doc.doc_mode,
-                        'extracted_text': sibling_doc.extracted_text,
-                        'latest_version_content': latest_ver.content if latest_ver else None
-                    })
-                return results
-
-            sibling_docs_info = await get_sibling_docs_info()
-            processed_doc_types = set()
-
-            for sibling_info in sibling_docs_info:
-                sib_doc_type = sibling_info['doc_type']
-                display_name = doc_type_display.get(sib_doc_type, sib_doc_type)
-                text_content = None
-                mode_label = ""
-
-                # 1. 프론트엔드에서 전달된 데이터 확인
-                if prev_documents and sib_doc_type in prev_documents:
-                    doc_info = prev_documents[sib_doc_type]
-                    if doc_info:
-                        content = doc_info.get('content', '')
-                        mode = doc_info.get('type', 'manual')
-                        if content and content.strip():
-                            text_content = re.sub(r'<[^>]+>', ' ', content)
-                            text_content = re.sub(r'\s+', ' ', text_content).strip()
-                            mode_label = "(업로드)" if mode == 'upload' else "(직접작성)"
-
-                # 2. 프론트엔드 데이터가 없으면 DB에서 조회
-                if not text_content:
-                    if sibling_info['doc_mode'] == 'upload' and sibling_info['extracted_text']:
-                        text_content = sibling_info['extracted_text'].strip()
-                        mode_label = "(업로드)"
-                    elif sibling_info['doc_mode'] == 'manual' and sibling_info['latest_version_content']:
-                        content_data = sibling_info['latest_version_content']
-                        html_content = ''
-                        if isinstance(content_data, dict):
-                            html_content = content_data.get('html', '') or content_data.get('html_content', '')
-                        else:
-                            html_content = str(content_data)
-                        if html_content and html_content.strip():
-                            text_content = re.sub(r'<[^>]+>', ' ', html_content)
-                            text_content = re.sub(r'\s+', ' ', text_content).strip()
-                            mode_label = "(직접작성)"
-
-                if text_content and sib_doc_type not in processed_doc_types:
-                    prev_doc_contents.append(f"  [{display_name} {mode_label}]\n{text_content[:1500]}")
-                    processed_doc_types.add(sib_doc_type)
-
-            if prev_doc_contents:
-                context_parts.append(f"[이전 step 문서 내용 - 참조용]\n" + "\n\n".join(prev_doc_contents))
-                logger.info(f"✅ 이전 문서 {len(prev_doc_contents)}개 내용을 컨텍스트에 추가")
-
-        except Exception as e:
-            logger.error(f"이전 문서 조회 오류: {e}")
+        if prev_doc_contents:
+            context_parts.append(f"[이전 step 문서 내용 - 참조용]\n" + "\n\n".join(prev_doc_contents))
 
         # Mem0 컨텍스트 추가
         if context.get('short_memories'):
-            short_mem_texts = [m.get('memory', str(m)) for m in context['short_memories']]
-            context_parts.append(f"[이전 대화 상세]\n" + "\n".join(f"- {t}" for t in short_mem_texts))
+            context_parts.append(f"[이전 대화 상세]\n" + "\n".join(f"- {m.get('memory', str(m))}" for m in context['short_memories']))
 
         if context.get('long_memories'):
-            long_mem_texts = [m.get('memory', str(m)) for m in context['long_memories']]
-            context_parts.append(f"[이전 대화 요약]\n" + "\n".join(f"- {t}" for t in long_mem_texts))
+            context_parts.append(f"[이전 대화 요약]\n" + "\n".join(f"- {m.get('memory', str(m))}" for m in context['long_memories']))
 
         if message_history:
-            history_text = "\n".join([
-                f"{'사용자' if msg['role'] == 'user' else 'AI'}: {msg['content'][:100]}..."
-                for msg in message_history[-3:]
-            ])
+            history_text = "\n".join([f"{'사용자' if msg['role'] == 'user' else 'AI'}: {msg['content'][:100]}..." for msg in message_history[-3:]])
             context_parts.append(f"[최근 대화]\n{history_text}")
 
         if context_parts:

@@ -74,7 +74,8 @@ def get_trade_agent(
 def get_document_writing_agent(
     document_content: str,
     prompt_version: int | None = None,
-    prompt_label: str = "latest"
+    prompt_label: str = "latest",
+    prev_docs_content: str | None = None
 ) -> Agent:
     """
     문서 작성 Agent 생성 (읽기 + 수정 기능)
@@ -86,6 +87,7 @@ def get_document_writing_agent(
         document_content: 현재 에디터의 HTML 내용
         prompt_version: Langfuse 프롬프트 특정 버전
         prompt_label: Langfuse 프롬프트 레이블
+        prev_docs_content: 이전 step 문서 내용 (참조용)
 
     Returns:
         Agent 인스턴스
@@ -109,6 +111,19 @@ def get_document_writing_agent(
             document_content=document_content
         )
 
+    # 이전 step 문서 내용을 시스템 프롬프트에 추가
+    if prev_docs_content:
+        instructions += f"""
+
+────────────────
+[이전 Step 문서 내용 - 참조용]
+────────────────
+아래는 동일 거래(Trade)의 이전 step에서 작성되거나 업로드된 문서 내용입니다.
+사용자가 이전 문서 내용에 대해 질문하면 아래 내용을 참조하여 자연스럽게 답변하세요.
+
+{prev_docs_content}
+"""
+
     return Agent(
         name="Document Writing Assistant",
         model="gpt-5.1",
@@ -126,7 +141,8 @@ def get_read_document_agent(
     document_name: str,
     document_type: str = "문서",
     prompt_version: int | None = None,
-    prompt_label: str = "latest"
+    prompt_label: str = "latest",
+    prev_docs_content: str | None = None
 ) -> Agent:
     """
     업로드 문서 전용 Agent 생성
@@ -140,6 +156,7 @@ def get_read_document_agent(
         document_type: 문서 타입 (예: "Offer Sheet", "Sales Contract")
         prompt_version: Langfuse 프롬프트 특정 버전
         prompt_label: Langfuse 프롬프트 레이블
+        prev_docs_content: 이전 step 문서 내용 (참조용)
 
     Returns:
         Agent 인스턴스
@@ -168,6 +185,19 @@ def get_read_document_agent(
             document_name=document_name,
             document_type=document_type
         )
+
+    # 이전 step 문서 내용을 시스템 프롬프트에 추가
+    if prev_docs_content:
+        instructions += f"""
+
+────────────────
+[이전 Step 문서 내용 - 참조용]
+────────────────
+아래는 동일 거래(Trade)의 이전 step에서 작성되거나 업로드된 문서 내용입니다.
+사용자가 이전 문서 내용에 대해 질문하면 아래 내용을 참조하여 자연스럽게 답변하세요.
+
+{prev_docs_content}
+"""
 
     return Agent(
         name="Document Reader Assistant",
