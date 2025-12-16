@@ -1519,6 +1519,8 @@ export default function DocumentCreationPage({
       leftContent = (
         <button
           onClick={() => {
+            // 업로드 상태 리셋 (다시 업로드 선택 시 이전 파일이 남아있지 않도록)
+            removeUploadedFile(currentStep);
             // 모드 전환 (useEffect에서 documentData에 자동 동기화됨)
             setStepModes(prev => ({ ...prev, [currentStep]: null }));
           }}
