@@ -373,7 +373,7 @@ async def search_user_document(document_id: int, query: str, limit: int = 10) ->
             query_filter=Filter(
                 must=[
                     FieldCondition(
-                        key="document_id",
+                        key="doc_id",
                         match=MatchValue(value=document_id)
                     )
                 ]

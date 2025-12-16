@@ -104,7 +104,7 @@ class CollectionManager:
         # 2-1. document_id 필드에 인덱스 생성 (필터링 성능 향상)
         self.create_payload_index(
             collection_name=user_docs_collection,
-            field_name="document_id",
+            field_name="doc_id",
             field_type=PayloadSchemaType.INTEGER
         )
 
