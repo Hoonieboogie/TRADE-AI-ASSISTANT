@@ -1512,7 +1512,7 @@ export default function DocumentCreationPage({
   }, [currentDocKey, documentData[currentDocKey], sharedData, editorKey]);
 
   const renderStepHeaderControls = () => {
-    // 1. Left Side Content (Back Button)
+    // 1. Left Side Content (Back Button or CI/PL Switcher)
     let leftContent = null;
     // Show back button if any mode is selected for Step 1 or 3
     if ((currentStep === 1 || currentStep === 3) && stepModes[currentStep]) {
@@ -1528,17 +1528,14 @@ export default function DocumentCreationPage({
           <span className="font-medium">작성 방식 다시 선택하기</span>
         </button>
       );
-    }
-
-    // 2. Center Content (Quick Switcher)
-    let centerContent = null;
-    if (currentStep === 4 && activeShippingDoc) {
+    } else if (currentStep === 4 && activeShippingDoc) {
+      // Step 4: CI/PL 토글을 왼쪽에 배치
       const tabs = [
         { id: 'CI', label: 'Commercial Invoice', icon: FileText, color: 'text-blue-600' },
         { id: 'PL', label: 'Packing List', icon: Package, color: 'text-indigo-600' }
       ];
 
-      centerContent = (
+      leftContent = (
         <div className="bg-gray-100/80 backdrop-blur-sm p-1.5 rounded-full flex items-center shadow-inner border border-gray-200/50 relative">
           {tabs.map((tab) => {
             const isActive = activeShippingDoc === tab.id;
@@ -1659,11 +1656,10 @@ export default function DocumentCreationPage({
       </div>
     ) : null;
 
-    // 4. Return Grid Container
+    // 4. Return Grid Container (2열: left + right)
     return (
-      <div className="px-8 pb-4 grid grid-cols-3 items-center min-h-[76px]">
+      <div className="px-8 pb-4 grid grid-cols-2 items-center min-h-[76px]">
         <div className="justify-self-start">{leftContent}</div>
-        <div className="justify-self-center">{centerContent}</div>
         <div className="justify-self-end">{rightContent}</div>
       </div>
     );
