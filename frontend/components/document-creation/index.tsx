@@ -1510,14 +1510,10 @@ export default function DocumentCreationPage({
     // 3. documentData 전체 교체 (이전 상태 무시) - 먼저 상태 설정
     setDocumentData(restoredDocumentData);
 
-    // 3.5. modifiedSteps 초기화 (복원된 데이터 기준으로 내용이 있는 step만)
-    const restoredSteps = new Set<number>();
-    for (let docStep = 1; docStep <= 5; docStep++) {
-      if (restoredDocumentData[docStep]) {
-        restoredSteps.add(docStep);
-      }
-    }
-    setModifiedSteps(restoredSteps);
+    // 3.5. modifiedSteps 초기화 (복원 대상 step만 포함)
+    // 버전 복원은 해당 step만 "수정됨"으로 표시해야 함
+    // 다른 step은 복원 시점의 데이터가 유지되지만 "새로 수정한 것"이 아님
+    setModifiedSteps(new Set([version.step]));
 
     // 3.6. 모든 step의 stepModes 및 백엔드 상태 복원
     const newStepModes: Record<number, StepMode> = {};
@@ -1551,6 +1547,8 @@ export default function DocumentCreationPage({
         } else {
           // 에디터 버전 복원
           newStepModes[docStep] = 'manual';
+          // 업로드 상태 초기화 (useEffect가 modifiedSteps에 다시 추가하지 않도록)
+          removeUploadedFile(docStep);
           // 백엔드 상태 업데이트
           if (docId) {
             try {
@@ -1565,6 +1563,8 @@ export default function DocumentCreationPage({
       } else {
         // 해당 시점에 버전 없음 → 모드 초기화
         newStepModes[docStep] = null;
+        // 업로드 상태 초기화
+        removeUploadedFile(docStep);
         if (docId) {
           try {
             await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
