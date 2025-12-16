@@ -1422,7 +1422,7 @@ export default function DocumentCreationPage({
     }, 100);
   };
 
-  const handleVersionRestore = (version: Version) => {
+  const handleVersionRestore = async (version: Version) => {
     const targetTimestamp = version.timestamp;
     const step = version.step;
 
@@ -1442,6 +1442,9 @@ export default function DocumentCreationPage({
       5: undefined,
     };
 
+    // 각 step의 복원된 버전 정보 추적 (백엔드 상태 업데이트용)
+    const restoredVersionInfo: Record<number, { isUpload: boolean; uploadInfo?: Version['uploadInfo'] } | null> = {};
+
     for (let docStep = 1; docStep <= 5; docStep++) {
       // 해당 step의 버전들 중 targetTimestamp 이하인 가장 최신 버전 찾기
       const stepVersions = versions
@@ -1449,7 +1452,14 @@ export default function DocumentCreationPage({
         .sort((a, b) => b.timestamp - a.timestamp);
 
       if (stepVersions.length > 0) {
-        restoredDocumentData[docStep] = stepVersions[0].data[docStep];
+        const latestVersion = stepVersions[0];
+        restoredDocumentData[docStep] = latestVersion.data[docStep];
+        restoredVersionInfo[docStep] = {
+          isUpload: latestVersion.isUpload || false,
+          uploadInfo: latestVersion.uploadInfo,
+        };
+      } else {
+        restoredVersionInfo[docStep] = null;
       }
     }
 
@@ -1494,41 +1504,75 @@ export default function DocumentCreationPage({
     }
     setModifiedSteps(restoredSteps);
 
-    // 4. UI 상태 업데이트 - 버전 타입에 따라 분기
+    // 3.6. 모든 step의 stepModes 및 백엔드 상태 복원
+    const newStepModes: Record<number, StepMode> = {};
+    const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
+
+    for (let docStep = 1; docStep <= 5; docStep++) {
+      const versionInfo = restoredVersionInfo[docStep];
+      const docId = getDocId?.(docStep <= 3 ? docStep : 4, docStep === 5 ? 'PL' : docStep === 4 ? 'CI' : null);
+
+      if (versionInfo) {
+        if (versionInfo.isUpload) {
+          // 업로드 버전 복원
+          newStepModes[docStep] = 'upload';
+          if (versionInfo.uploadInfo) {
+            restoreUploadState(docStep, {
+              filename: versionInfo.uploadInfo.filename,
+              s3_url: versionInfo.uploadInfo.s3_url,
+              convertedPdfUrl: versionInfo.uploadInfo.convertedPdfUrl,
+            });
+          }
+          // 백엔드 상태 업데이트
+          if (docId) {
+            try {
+              await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doc_mode: 'upload', upload_status: 'ready' })
+              });
+            } catch { /* ignore */ }
+          }
+        } else {
+          // 에디터 버전 복원
+          newStepModes[docStep] = 'manual';
+          // 백엔드 상태 업데이트
+          if (docId) {
+            try {
+              await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doc_mode: 'manual', upload_status: null })
+              });
+            } catch { /* ignore */ }
+          }
+        }
+      } else {
+        // 해당 시점에 버전 없음 → 모드 초기화
+        newStepModes[docStep] = null;
+        if (docId) {
+          try {
+            await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ doc_mode: null, upload_status: null })
+            });
+          } catch { /* ignore */ }
+        }
+      }
+    }
+
+    setStepModes(newStepModes);
+
+    // 4. UI 상태 업데이트
     setShowVersionHistory(false);
 
     if (step <= 3) {
       setCurrentStep(step);
-
-      // 버전 타입에 따라 모드 설정
-      if (version.isUpload && version.uploadInfo) {
-        // 업로드 버전 복원
-        setStepModes(prev => ({ ...prev, [step]: 'upload' }));
-        restoreUploadState(step, {
-          filename: version.uploadInfo.filename,
-          s3_url: version.uploadInfo.s3_url,
-          convertedPdfUrl: version.uploadInfo.convertedPdfUrl,
-        });
-      } else {
-        // 에디터 버전 복원
-        setStepModes(prev => ({ ...prev, [step]: 'manual' }));
-      }
     } else {
       // Step 4 (CI/PL)
       setCurrentStep(4);
       setActiveShippingDoc(step === 4 ? 'CI' : 'PL');
-
-      // Step 4도 버전 타입에 따라 분기
-      if (version.isUpload && version.uploadInfo) {
-        setStepModes(prev => ({ ...prev, [4]: 'upload' }));
-        restoreUploadState(step, {
-          filename: version.uploadInfo.filename,
-          s3_url: version.uploadInfo.s3_url,
-          convertedPdfUrl: version.uploadInfo.convertedPdfUrl,
-        });
-      } else {
-        setStepModes(prev => ({ ...prev, [4]: 'manual' }));
-      }
     }
 
     // 5. 에디터 리마운트 및 플래그 해제
