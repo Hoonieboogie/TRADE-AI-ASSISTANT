@@ -388,6 +388,19 @@ class DocumentViewSet(viewsets.ModelViewSet):
         trade_id = trade.trade_id
         doc_type = document.doc_type
 
+        # 이전 업로드 파일이 있으면 S3에서 삭제 (orphan 방지)
+        if document.s3_key:
+            try:
+                s3_manager.delete_file(document.s3_key)
+                logger.info(f"Deleted previous S3 file: {document.s3_key}")
+
+                # 변환된 PDF도 삭제
+                if document.converted_pdf_key:
+                    s3_manager.delete_file(document.converted_pdf_key)
+                    logger.info(f"Deleted previous converted PDF: {document.converted_pdf_key}")
+            except Exception as e:
+                logger.warning(f"Failed to delete previous S3 files: {e}")
+
         try:
             presigned_data = s3_manager.generate_presigned_upload_url(
                 file_name=filename,
