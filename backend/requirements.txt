@@ -45,5 +45,8 @@ python-multipart>=0.0.20
 # HWP Processing
 pyhwp>=0.1b15
 
+# DOCX Processing
+python-docx>=1.1.0
+
 # ASGI Server
 uvicorn[standard]>=0.30.0
