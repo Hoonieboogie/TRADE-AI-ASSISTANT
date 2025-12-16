@@ -392,9 +392,9 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                           const stepContent = doc.content && doc.content[contentKey];
                           const hasContent = stepContent && typeof stepContent === 'string' && checkStepCompletion(stepContent);
 
-                          // 2. Uploaded or Skipped
+                          // 2. Uploaded or Skipped (App.tsx와 일치하는 로직)
                           const tradeDoc = doc.tradeData?.documents?.find((d: any) => d.doc_type === stepType);
-                          const isUploaded = tradeDoc?.upload_status === 'ready';
+                          const isUploaded = tradeDoc?.doc_mode === 'upload' && tradeDoc?.upload_status === 'ready';
                           const isSkipped = tradeDoc?.doc_mode === 'skip';
 
                           return hasContent || isUploaded || isSkipped;
