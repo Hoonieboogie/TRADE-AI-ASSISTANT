@@ -406,11 +406,11 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                         // Accessible if:
                         // 1. It's the first step
                         // 2. OR the previous step is complete
-                        // 3. OR the step itself is already started/complete (to ensure access to existing work)
+                        // (엄격한 순차 워크플로우: 이전 step 완료 필수)
                         let isAccessible = stepNumber === 1;
                         if (stepNumber > 1) {
                           const prevStepComplete = checkCompletion(stepNumber - 1);
-                          isAccessible = prevStepComplete || isDocCompleted;
+                          isAccessible = prevStepComplete;
                         }
 
                         // If not accessible, render as disabled
