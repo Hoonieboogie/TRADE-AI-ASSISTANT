@@ -10,6 +10,7 @@ interface UseDocumentStateReturn {
 
   // Modified steps tracking
   modifiedSteps: Set<number>;
+  setModifiedSteps: React.Dispatch<React.SetStateAction<Set<number>>>;
   markStepModified: (step: number) => void;
 
   // Dirty state
@@ -77,6 +78,7 @@ export function useDocumentState(
     stepModes,
     setStepModes,
     modifiedSteps,
+    setModifiedSteps,
     markStepModified,
     isDirty,
     setIsDirty,

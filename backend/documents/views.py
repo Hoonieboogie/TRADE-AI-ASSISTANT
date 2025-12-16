@@ -388,6 +388,9 @@ class DocumentViewSet(viewsets.ModelViewSet):
         trade_id = trade.trade_id
         doc_type = document.doc_type
 
+        # 참고: 이전 S3 파일은 삭제하지 않음
+        # DocVersion에 참조가 남아있어 버전 복원 시 필요함
+
         try:
             presigned_data = s3_manager.generate_presigned_upload_url(
                 file_name=filename,

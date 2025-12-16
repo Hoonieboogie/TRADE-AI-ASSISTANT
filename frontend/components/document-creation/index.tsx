@@ -89,7 +89,8 @@ export default function DocumentCreationPage({
     uploadedConvertedPdfUrls,
     handleFileUpload,
     removeUploadedFile,
-    retryUpload
+    retryUpload,
+    restoreUploadState
   } = useFileUpload(
     documentData.uploadedFileNames as Record<number, string>,
     documentData.uploadedFileUrls as Record<number, string>,
@@ -408,6 +409,7 @@ export default function DocumentCreationPage({
     stepModes,
     setStepModes,
     modifiedSteps,
+    setModifiedSteps,
     markStepModified,
     isDirty,
     setIsDirty,
@@ -442,6 +444,23 @@ export default function DocumentCreationPage({
     latestDocumentDataRef.current = documentData;
   }, [documentData]);
 
+  // 업로드 완료 시 modifiedSteps에 추가 및 isDirty 설정
+  useEffect(() => {
+    Object.entries(uploadStatus).forEach(([stepStr, status]) => {
+      const step = Number(stepStr);
+      if (status === 'ready') {
+        setModifiedSteps(prev => {
+          if (prev.has(step)) return prev;
+          const newSet = new Set(prev);
+          newSet.add(step);
+          return newSet;
+        });
+        // 업로드 완료 시에도 저장 필요 상태로 설정
+        setIsDirty(true);
+      }
+    });
+  }, [uploadStatus, setModifiedSteps, setIsDirty]);
+
   // UI State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatWidth, setChatWidth] = useState(400);
@@ -465,6 +484,9 @@ export default function DocumentCreationPage({
   const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Version Restore Notice
+  const [showVersionRestoreNotice, setShowVersionRestoreNotice] = useState(false);
 
   // [ADDED] Force update state to trigger re-renders on editor changes
   const [, forceUpdate] = useState({});
@@ -745,17 +767,31 @@ export default function DocumentCreationPage({
       uploadedFileUrls: uploadedDocumentUrls
     };
 
-    // [추가] sharedData + documentData에서 추출한 데이터 통합
+    // [추가] 순차 워크플로우에 따라 접근 가능한 step만 데이터 추출
+    // 이전 step이 완료되지 않으면 해당 step과 이후 step은 제외
+    // 이렇게 하면 복원된 오퍼가 미완성일 때 PI 데이터가 오퍼에 역매핑되지 않음
     const combinedSharedData: Record<string, string> = {};
+    let canContinue = true;
     [1, 2, 3, 4, 5].forEach(step => {
+      if (!canContinue) return;
+
       const content = newDocData[step];
       if (typeof content === 'string') {
         const data = extractDataFromContent(content);
         Object.assign(combinedSharedData, data);
+
+        // 현재 step이 미완성이면 이후 step 데이터는 추출하지 않음
+        if (!checkStepCompletion(content)) {
+          canContinue = false;
+        }
+      } else {
+        // 콘텐츠가 없으면 이후 step도 건너뜀
+        canContinue = false;
       }
     });
 
     // [추가] 모든 step에 매핑 적용 (editorRef 없어도 동작)
+    // 순서대로 적용하여 앞 step 데이터가 뒤 step에 매핑되도록 함
     [1, 2, 3, 4, 5].forEach(step => {
       const content = newDocData[step];
       if (typeof content === 'string') {
@@ -772,20 +808,26 @@ export default function DocumentCreationPage({
 
       const saveKey = currentStep <= 3 ? currentStep : (shippingOrder ? getDocKeyForStep(currentStep) : -1);
       if (saveKey !== -1) {
+        // 현재 에디터 내용을 newDocData에 반영
         (newDocData as any)[saveKey] = content;
+
+        // 현재 에디터 내용에서 추가 데이터 추출하여 combinedSharedData에 병합
+        // (순차 워크플로우 체크는 이미 위에서 완료됨, 현재 step은 사용자가 편집 중이므로 추가)
+        const currentData = extractDataFromContent(content);
+        Object.assign(combinedSharedData, currentData);
+
+        // combinedSharedData로 다시 매핑 (순차 워크플로우 기반 데이터만 사용)
+        [1, 2, 3, 4, 5].forEach(docKey => {
+          if (docKey === saveKey) return; // 현재 편집 중인 문서는 건너뜀
+          const originalContent = newDocData[docKey];
+          if (typeof originalContent === 'string') {
+            const updated = applySharedData(originalContent, combinedSharedData);
+            if (updated !== originalContent) {
+              newDocData[docKey] = updated;
+            }
+          }
+        });
       }
-
-      // Propagate shared data changes to other documents
-      Object.keys(newDocData).forEach(key => {
-        const docKey = Number(key);
-        if (isNaN(docKey) || key === 'title' || docKey === saveKey) return;
-
-        const originalContent = (newDocData as any)[key];
-        if (typeof originalContent === 'string') {
-          const updated = updateContentWithSharedData(originalContent);
-          if (updated !== originalContent) (newDocData as any)[key] = updated;
-        }
-      });
     }
 
     // 에디터 유무와 관계없이 항상 documentData 업데이트 (업로드 직후 저장 시 필요)
@@ -803,6 +845,7 @@ export default function DocumentCreationPage({
     onSave(newDocData, currentStep, activeShippingDoc, isAllCompleted);
     setIsDirty(false);
     setShowSaveSuccessModal(true);
+    setShowVersionRestoreNotice(false); // 버전 복원 알림 닫기
   };
 
   const handleDownload = () => {
@@ -1420,7 +1463,7 @@ export default function DocumentCreationPage({
     }, 100);
   };
 
-  const handleVersionRestore = (version: Version) => {
+  const handleVersionRestore = async (version: Version) => {
     const targetTimestamp = version.timestamp;
     const step = version.step;
 
@@ -1430,14 +1473,18 @@ export default function DocumentCreationPage({
 
     // 1. 선택한 버전의 timestamp 기준으로 각 문서의 해당 시점 상태 복원
     // 해당 시점에 버전이 없는 문서는 undefined로 설정 (이전 상태 제거)
+    // 버전 복원 시 title은 변경하지 않음 (유저가 직접 설정하는 값)
     const restoredDocumentData: DocumentData = {
-      title: version.data.title || documentData.title,
+      title: documentData.title,
       1: undefined,
       2: undefined,
       3: undefined,
       4: undefined,
       5: undefined,
     };
+
+    // 각 step의 복원된 버전 정보 추적 (백엔드 상태 업데이트용)
+    const restoredVersionInfo: Record<number, { isUpload: boolean; uploadInfo?: Version['uploadInfo'] } | null> = {};
 
     for (let docStep = 1; docStep <= 5; docStep++) {
       // 해당 step의 버전들 중 targetTimestamp 이하인 가장 최신 버전 찾기
@@ -1446,16 +1493,27 @@ export default function DocumentCreationPage({
         .sort((a, b) => b.timestamp - a.timestamp);
 
       if (stepVersions.length > 0) {
-        restoredDocumentData[docStep] = stepVersions[0].data[docStep];
+        const latestVersion = stepVersions[0];
+        restoredDocumentData[docStep] = latestVersion.data[docStep];
+        restoredVersionInfo[docStep] = {
+          isUpload: latestVersion.isUpload || false,
+          uploadInfo: latestVersion.uploadInfo,
+        };
+      } else {
+        restoredVersionInfo[docStep] = null;
       }
     }
 
-    // 2. 복원된 모든 문서에서 sharedData 추출하여 한 번에 설정
+    // 2. 순차 워크플로우에 따라 접근 가능한 step만 sharedData 추출
+    // 이전 step이 미완성이면 해당 step과 이후 step 데이터는 제외
     // (비동기 상태 업데이트 문제 방지를 위해 extractData를 직접 호출하지 않음)
     const newSharedData: Record<string, string> = {};
     const parser = new DOMParser();
+    let canContinueExtract = true;
 
     for (let docStep = 1; docStep <= 5; docStep++) {
+      if (!canContinueExtract) break;
+
       const content = restoredDocumentData[docStep];
       if (content) {
         const doc = parser.parseFromString(content, 'text/html');
@@ -1473,6 +1531,14 @@ export default function DocumentCreationPage({
             }
           }
         });
+
+        // 현재 step이 미완성이면 이후 step 데이터는 추출하지 않음
+        if (!checkStepCompletion(content)) {
+          canContinueExtract = false;
+        }
+      } else {
+        // 콘텐츠가 없으면 이후 step도 건너뜀
+        canContinueExtract = false;
       }
     }
 
@@ -1482,12 +1548,86 @@ export default function DocumentCreationPage({
     // 3. documentData 전체 교체 (이전 상태 무시) - 먼저 상태 설정
     setDocumentData(restoredDocumentData);
 
+    // 3.1. latestDocumentDataRef 직접 업데이트 (handleSave에서 즉시 사용 가능하도록)
+    // React 상태 업데이트는 비동기이므로, ref를 직접 업데이트해야 버전 복원 직후 저장 시 올바른 데이터 사용
+    latestDocumentDataRef.current = restoredDocumentData;
+
+    // 3.5. modifiedSteps 초기화 (복원 대상 step만 포함)
+    // 버전 복원은 해당 step만 "수정됨"으로 표시해야 함
+    // 다른 step은 복원 시점의 데이터가 유지되지만 "새로 수정한 것"이 아님
+    setModifiedSteps(new Set([version.step]));
+
+    // 3.6. 모든 step의 stepModes 및 백엔드 상태 복원
+    const newStepModes: Record<number, StepMode> = {};
+    const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
+
+    for (let docStep = 1; docStep <= 5; docStep++) {
+      const versionInfo = restoredVersionInfo[docStep];
+      const docId = getDocId?.(docStep <= 3 ? docStep : 4, docStep === 5 ? 'PL' : docStep === 4 ? 'CI' : null);
+
+      if (versionInfo) {
+        if (versionInfo.isUpload) {
+          // 업로드 버전 복원
+          newStepModes[docStep] = 'upload';
+          if (versionInfo.uploadInfo) {
+            restoreUploadState(docStep, {
+              filename: versionInfo.uploadInfo.filename,
+              s3_url: versionInfo.uploadInfo.s3_url,
+              convertedPdfUrl: versionInfo.uploadInfo.convertedPdfUrl,
+            });
+          }
+          // 백엔드 상태 업데이트
+          if (docId) {
+            try {
+              await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doc_mode: 'upload', upload_status: 'ready' })
+              });
+            } catch { /* ignore */ }
+          }
+        } else {
+          // 에디터 버전 복원
+          newStepModes[docStep] = 'manual';
+          // 업로드 상태 초기화 (useEffect가 modifiedSteps에 다시 추가하지 않도록)
+          removeUploadedFile(docStep);
+          // 백엔드 상태 업데이트
+          if (docId) {
+            try {
+              await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doc_mode: 'manual', upload_status: null })
+              });
+            } catch { /* ignore */ }
+          }
+        }
+      } else {
+        // 해당 시점에 버전 없음 → 모드 초기화
+        newStepModes[docStep] = null;
+        // 업로드 상태 초기화
+        removeUploadedFile(docStep);
+        if (docId) {
+          try {
+            await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ doc_mode: null, upload_status: null })
+            });
+          } catch { /* ignore */ }
+        }
+      }
+    }
+
+    setStepModes(newStepModes);
+
     // 4. UI 상태 업데이트
     setShowVersionHistory(false);
+
     if (step <= 3) {
       setCurrentStep(step);
-      setStepModes(prev => ({ ...prev, [step]: 'manual' }));
     } else {
+      // Step 4 (CI/PL)
       setCurrentStep(4);
       setActiveShippingDoc(step === 4 ? 'CI' : 'PL');
     }
@@ -1498,6 +1638,9 @@ export default function DocumentCreationPage({
       isRestoringVersion.current = false;
       isLoadingTemplate.current = false;
     }, 100);
+
+    // 6. 버전 복원 완료 알림 표시 (저장 시에만 닫힘)
+    setShowVersionRestoreNotice(true);
   };
 
   // Calculate doc key for current step
@@ -1518,9 +1661,41 @@ export default function DocumentCreationPage({
     if ((currentStep === 1 || currentStep === 3) && stepModes[currentStep]) {
       leftContent = (
         <button
-          onClick={() => {
-            // 모드 전환 (useEffect에서 documentData에 자동 동기화됨)
+          onClick={async () => {
+            // 업로드 상태 리셋
+            removeUploadedFile(currentStep);
+
+            // sharedData 완전 초기화 (업로드에서 추출된 모든 값 제거)
+            setSharedData({});
+
+            // 모든 step의 documentData 초기화 (업로드에서 매핑된 값 제거)
+            setDocumentData((prev: DocumentData) => ({
+              title: prev.title,
+              1: undefined,
+              2: undefined,
+              3: undefined,
+              4: undefined,
+              5: undefined,
+            }));
+
+            // modifiedSteps 초기화 (저장 모달에서 올바른 문서만 표시)
+            setModifiedSteps(new Set());
+
+            // 모드 전환
             setStepModes(prev => ({ ...prev, [currentStep]: null }));
+
+            // 백엔드 upload_status 초기화 (MainPage에서 접근 가능 여부 판단에 사용)
+            const docId = getDocId?.(currentStep, null);
+            if (docId) {
+              try {
+                const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
+                await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ upload_status: null, doc_mode: null })
+                });
+              } catch { /* ignore */ }
+            }
           }}
           className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors px-4 py-2 rounded-lg hover:bg-gray-100"
         >
@@ -1709,7 +1884,21 @@ export default function DocumentCreationPage({
             }
           }}
           onRetry={() => retryUpload(currentStep)}
-          onReset={() => removeUploadedFile(currentStep)}
+          onReset={async () => {
+            removeUploadedFile(currentStep);
+            // 백엔드 upload_status 초기화
+            const docId = getDocId?.(currentStep, null);
+            if (docId) {
+              try {
+                const API_URL = import.meta.env.VITE_DJANGO_API_URL || 'http://localhost:8000';
+                await fetch(`${API_URL}/api/documents/documents/${docId}/`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ upload_status: null })
+                });
+              } catch { /* ignore */ }
+            }
+          }}
         />
       );
     }
@@ -1800,6 +1989,29 @@ export default function DocumentCreationPage({
         onMyPageClick={() => setShowMyPageModal(!showMyPageModal)}
         onLogoutClick={() => setShowLogoutConfirm(true)}
       />
+
+      {/* Version Restore Notice Banner */}
+      <AnimatePresence>
+        {showVersionRestoreNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="bg-blue-50 border-b border-blue-200 px-4 py-3 flex items-center justify-center"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <Check className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-900">버전이 복원되었습니다</p>
+                <p className="text-xs text-blue-700">저장 버튼을 눌러 공통 필드를 모든 문서에 적용하세요</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Content */}
       <div className="flex-1 flex min-h-0">

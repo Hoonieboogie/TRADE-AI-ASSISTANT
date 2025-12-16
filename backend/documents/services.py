@@ -385,6 +385,24 @@ def process_uploaded_document(document_id: int):
 
         # 포인트 ID 저장
         document.qdrant_point_ids = [p.id for p in points]
+
+        # 업로드 버전 기록 생성
+        from documents.models import DocVersion
+        DocVersion.objects.create(
+            doc=document,
+            content={
+                'type': 'upload',
+                's3_key': document.s3_key,
+                's3_url': document.s3_url,
+                'filename': document.original_filename,
+                'file_size': document.file_size,
+                'mime_type': document.mime_type,
+                'converted_pdf_key': getattr(document, 'converted_pdf_key', None),
+                'converted_pdf_url': getattr(document, 'converted_pdf_url', None),
+            }
+        )
+        logger.info(f"Created upload version for document {document.doc_id}")
+
         document.upload_status = 'ready'
         document.save()
 

@@ -36,6 +36,13 @@ export interface SavedDocument {
     timestamp: number;
     data: DocumentData;
     step: number;
+    isUpload?: boolean;
+    uploadInfo?: {
+      s3_key: string;
+      s3_url: string;
+      filename: string;
+      convertedPdfUrl?: string;
+    };
   }[];
   tradeData?: Trade; // 백엔드 Trade 원본 데이터
 }
@@ -215,7 +222,19 @@ function App() {
       const trades = await response.json();
       const documents: SavedDocument[] = trades.map((trade: any) => {
         const content: DocumentData = { title: trade.title };
-        const allVersions: { id: string; timestamp: number; data: DocumentData; step: number }[] = [];
+        const allVersions: {
+          id: string;
+          timestamp: number;
+          data: DocumentData;
+          step: number;
+          isUpload?: boolean;
+          uploadInfo?: {
+            s3_key: string;
+            s3_url: string;
+            filename: string;
+            convertedPdfUrl?: string;
+          };
+        }[] = [];
 
         trade.documents?.forEach((doc: any) => {
           const step = docTypeToStep(doc.doc_type);
@@ -232,11 +251,22 @@ function App() {
           doc.all_versions?.forEach((version: any) => {
             if (version.content) {
               const vc = version.content;
+              const isUpload = vc.type === 'upload';
+
               allVersions.push({
                 id: version.version_id.toString(),
                 timestamp: new Date(version.created_at).getTime(),
-                data: { [step]: vc.html || vc, title: vc.title },
-                step
+                data: isUpload
+                  ? { [step]: null, title: vc.filename }
+                  : { [step]: vc.html || vc, title: vc.title },
+                step,
+                isUpload,
+                uploadInfo: isUpload ? {
+                  s3_key: vc.s3_key,
+                  s3_url: vc.s3_url,
+                  filename: vc.filename,
+                  convertedPdfUrl: vc.converted_pdf_url,
+                } : undefined,
               });
             }
           });

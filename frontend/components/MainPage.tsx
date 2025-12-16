@@ -392,9 +392,9 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                           const stepContent = doc.content && doc.content[contentKey];
                           const hasContent = stepContent && typeof stepContent === 'string' && checkStepCompletion(stepContent);
 
-                          // 2. Uploaded or Skipped
+                          // 2. Uploaded or Skipped (App.tsx와 일치하는 로직)
                           const tradeDoc = doc.tradeData?.documents?.find((d: any) => d.doc_type === stepType);
-                          const isUploaded = tradeDoc?.upload_status === 'ready';
+                          const isUploaded = tradeDoc?.doc_mode === 'upload' && tradeDoc?.upload_status === 'ready';
                           const isSkipped = tradeDoc?.doc_mode === 'skip';
 
                           return hasContent || isUploaded || isSkipped;
@@ -406,11 +406,11 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
                         // Accessible if:
                         // 1. It's the first step
                         // 2. OR the previous step is complete
-                        // 3. OR the step itself is already started/complete (to ensure access to existing work)
+                        // (엄격한 순차 워크플로우: 이전 step 완료 필수)
                         let isAccessible = stepNumber === 1;
                         if (stepNumber > 1) {
                           const prevStepComplete = checkCompletion(stepNumber - 1);
-                          isAccessible = prevStepComplete || isDocCompleted;
+                          isAccessible = prevStepComplete;
                         }
 
                         // If not accessible, render as disabled
