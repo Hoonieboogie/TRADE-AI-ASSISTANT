@@ -1618,6 +1618,9 @@ export default function DocumentCreationPage({
               5: undefined,
             }));
 
+            // modifiedSteps 초기화 (저장 모달에서 올바른 문서만 표시)
+            setModifiedSteps(new Set());
+
             // 모드 전환
             setStepModes(prev => ({ ...prev, [currentStep]: null }));
 
