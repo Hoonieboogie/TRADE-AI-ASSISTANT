@@ -806,20 +806,26 @@ export default function DocumentCreationPage({
 
       const saveKey = currentStep <= 3 ? currentStep : (shippingOrder ? getDocKeyForStep(currentStep) : -1);
       if (saveKey !== -1) {
+        // 현재 에디터 내용을 newDocData에 반영
         (newDocData as any)[saveKey] = content;
+
+        // 현재 에디터 내용에서 추가 데이터 추출하여 combinedSharedData에 병합
+        // (순차 워크플로우 체크는 이미 위에서 완료됨, 현재 step은 사용자가 편집 중이므로 추가)
+        const currentData = extractDataFromContent(content);
+        Object.assign(combinedSharedData, currentData);
+
+        // combinedSharedData로 다시 매핑 (순차 워크플로우 기반 데이터만 사용)
+        [1, 2, 3, 4, 5].forEach(docKey => {
+          if (docKey === saveKey) return; // 현재 편집 중인 문서는 건너뜀
+          const originalContent = newDocData[docKey];
+          if (typeof originalContent === 'string') {
+            const updated = applySharedData(originalContent, combinedSharedData);
+            if (updated !== originalContent) {
+              newDocData[docKey] = updated;
+            }
+          }
+        });
       }
-
-      // Propagate shared data changes to other documents
-      Object.keys(newDocData).forEach(key => {
-        const docKey = Number(key);
-        if (isNaN(docKey) || key === 'title' || docKey === saveKey) return;
-
-        const originalContent = (newDocData as any)[key];
-        if (typeof originalContent === 'string') {
-          const updated = updateContentWithSharedData(originalContent);
-          if (updated !== originalContent) (newDocData as any)[key] = updated;
-        }
-      });
     }
 
     // 에디터 유무와 관계없이 항상 documentData 업데이트 (업로드 직후 저장 시 필요)
