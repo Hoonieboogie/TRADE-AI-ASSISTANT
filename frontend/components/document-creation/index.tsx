@@ -483,6 +483,9 @@ export default function DocumentCreationPage({
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // Version Restore Notice
+  const [showVersionRestoreNotice, setShowVersionRestoreNotice] = useState(false);
+
   // [ADDED] Force update state to trigger re-renders on editor changes
   const [, forceUpdate] = useState({});
 
@@ -1600,6 +1603,12 @@ export default function DocumentCreationPage({
       isRestoringVersion.current = false;
       isLoadingTemplate.current = false;
     }, 100);
+
+    // 6. 버전 복원 완료 알림 표시
+    setShowVersionRestoreNotice(true);
+    setTimeout(() => {
+      setShowVersionRestoreNotice(false);
+    }, 5000); // 5초 후 자동 닫힘
   };
 
   // Calculate doc key for current step
@@ -1948,6 +1957,38 @@ export default function DocumentCreationPage({
         onMyPageClick={() => setShowMyPageModal(!showMyPageModal)}
         onLogoutClick={() => setShowLogoutConfirm(true)}
       />
+
+      {/* Version Restore Notice Banner */}
+      <AnimatePresence>
+        {showVersionRestoreNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="bg-blue-50 border-b border-blue-200 px-4 py-3 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <Check className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-900">버전이 복원되었습니다</p>
+                <p className="text-xs text-blue-700">저장 버튼을 눌러 공통 필드를 모든 문서에 적용하세요</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowVersionRestoreNotice(false)}
+              className="text-blue-600 hover:text-blue-800 p-1"
+            >
+              <span className="sr-only">닫기</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Content */}
       <div className="flex-1 flex min-h-0">
