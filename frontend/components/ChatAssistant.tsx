@@ -436,14 +436,17 @@ ${documentContent}
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    // Capture the step when the request is made
-    const requestStep = currentStep;
+    // Step 4에서는 activeShippingDoc으로 실제 docKey 결정
+    // CI=4, PL=5 (Step 1~3은 step과 docKey가 동일)
+    const requestDocKey = currentStep <= 3
+      ? currentStep
+      : (activeShippingDoc === 'PL' ? 5 : 4);
 
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
       content: input,
-      step: requestStep
+      step: requestDocKey
     };
 
     const aiMessageId = (Date.now() + 1).toString();
@@ -528,7 +531,7 @@ ${documentContent}
           id: aiMessageId,
           type: 'ai' as const,
           content: '문서 ID가 없습니다. 페이지를 새로고침하거나 문서를 다시 생성해주세요.',
-          step: requestStep
+          step: requestDocKey
         }]);
         setIsLoading(false);
         return;
@@ -563,7 +566,7 @@ ${documentContent}
           id: aiMessageId,
           type: 'ai',
           content: '',
-          step: requestStep,
+          step: requestDocKey,
           toolsUsed: []
         }]);
         setCurrentToolStatus('질문 분석');  // 스트리밍 시작 시 질문 분석 상태
@@ -628,7 +631,7 @@ ${documentContent}
                           content: data.message || '문서를 수정했습니다.',
                           hasApply: true,
                           changes: data.changes || [],
-                          step: requestStep  // step 정보 추가
+                          step: requestDocKey  // step 정보 추가
                         }
                       : msg
                   ));
@@ -672,7 +675,7 @@ ${documentContent}
               id: aiMessageId,
               type: 'ai' as const,
               content: errorContent,
-              step: requestStep
+              step: requestDocKey
             }];
           }
         });
@@ -687,7 +690,7 @@ ${documentContent}
         content: response.message,
         hasApply: !!(response.changes && response.changes.length > 0),
         changes: response.changes,
-        step: requestStep,
+        step: requestDocKey,
         toolsUsed: response.toolsUsed
       };
 
