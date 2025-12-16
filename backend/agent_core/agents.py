@@ -61,7 +61,7 @@ def get_trade_agent(
 
     return Agent(
         name="Trade Compliance Analyst",
-        model="gpt-5,1",
+        model="gpt-5.1",
         instructions=instructions,
         tools=[search_trade_documents, search_web],
     )
