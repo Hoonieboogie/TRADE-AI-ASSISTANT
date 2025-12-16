@@ -61,7 +61,7 @@ def get_trade_agent(
 
     return Agent(
         name="Trade Compliance Analyst",
-        model="gpt-4o",
+        model="gpt-5,1",
         instructions=instructions,
         tools=[search_trade_documents, search_web],
     )
@@ -111,7 +111,7 @@ def get_document_writing_agent(
 
     return Agent(
         name="Document Writing Assistant",
-        model="gpt-4o",
+        model="gpt-5.1",
         instructions=instructions,
         tools=[search_trade_documents, search_web],
     )
@@ -171,7 +171,7 @@ def get_read_document_agent(
 
     return Agent(
         name="Document Reader Assistant",
-        model="gpt-4o",
+        model="gpt-5.1",
         instructions=instructions,
         tools=[search_user_document, search_trade_documents, search_web],
     )
