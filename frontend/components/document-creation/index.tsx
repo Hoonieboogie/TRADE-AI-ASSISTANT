@@ -823,6 +823,7 @@ export default function DocumentCreationPage({
     onSave(newDocData, currentStep, activeShippingDoc, isAllCompleted);
     setIsDirty(false);
     setShowSaveSuccessModal(true);
+    setShowVersionRestoreNotice(false); // 버전 복원 알림 닫기
   };
 
   const handleDownload = () => {
@@ -1604,11 +1605,8 @@ export default function DocumentCreationPage({
       isLoadingTemplate.current = false;
     }, 100);
 
-    // 6. 버전 복원 완료 알림 표시
+    // 6. 버전 복원 완료 알림 표시 (저장 시에만 닫힘)
     setShowVersionRestoreNotice(true);
-    setTimeout(() => {
-      setShowVersionRestoreNotice(false);
-    }, 5000); // 5초 후 자동 닫힘
   };
 
   // Calculate doc key for current step
@@ -1966,7 +1964,7 @@ export default function DocumentCreationPage({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="bg-blue-50 border-b border-blue-200 px-4 py-3 flex items-center justify-between"
+            className="bg-blue-50 border-b border-blue-200 px-4 py-3 flex items-center justify-center"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -1977,15 +1975,6 @@ export default function DocumentCreationPage({
                 <p className="text-xs text-blue-700">저장 버튼을 눌러 공통 필드를 모든 문서에 적용하세요</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowVersionRestoreNotice(false)}
-              className="text-blue-600 hover:text-blue-800 p-1"
-            >
-              <span className="sr-only">닫기</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
