@@ -56,7 +56,7 @@ class User(AbstractUser):
         unique=True,
         help_text="사원번호"
     )
-    name = models.CharField(max_length=100, help_text="이름")
+    name = models.CharField(max_length=30, help_text="이름")
     dept = models.ForeignKey(
         Department,
         on_delete=models.SET_NULL,

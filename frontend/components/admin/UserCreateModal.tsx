@@ -33,7 +33,7 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess, department
 
     // 유효성 검사 (백엔드 모델 제약조건과 동기화)
     const EMP_NO_MAX_LENGTH = 50;
-    const NAME_MAX_LENGTH = 100;
+    const NAME_MAX_LENGTH = 30;
 
     if (!empNo.trim()) {
       setError('사원번호를 입력해주세요.');
@@ -124,12 +124,12 @@ export default function UserCreateModal({ isOpen, onClose, onSuccess, department
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="이름을 입력하세요"
-              maxLength={100}
+              maxLength={30}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={isLoading}
             />
             <div className="mt-1 text-right text-xs text-gray-400">
-              {name.length}/100
+              {name.length}/30
             </div>
           </div>
 
