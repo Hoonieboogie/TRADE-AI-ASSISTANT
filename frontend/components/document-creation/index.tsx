@@ -409,6 +409,7 @@ export default function DocumentCreationPage({
     stepModes,
     setStepModes,
     modifiedSteps,
+    setModifiedSteps,
     markStepModified,
     isDirty,
     setIsDirty,
@@ -1431,8 +1432,9 @@ export default function DocumentCreationPage({
 
     // 1. 선택한 버전의 timestamp 기준으로 각 문서의 해당 시점 상태 복원
     // 해당 시점에 버전이 없는 문서는 undefined로 설정 (이전 상태 제거)
+    // 버전 복원 시 title은 변경하지 않음 (유저가 직접 설정하는 값)
     const restoredDocumentData: DocumentData = {
-      title: version.data.title || documentData.title,
+      title: documentData.title,
       1: undefined,
       2: undefined,
       3: undefined,
@@ -1482,6 +1484,15 @@ export default function DocumentCreationPage({
 
     // 3. documentData 전체 교체 (이전 상태 무시) - 먼저 상태 설정
     setDocumentData(restoredDocumentData);
+
+    // 3.5. modifiedSteps 초기화 (복원된 데이터 기준으로 내용이 있는 step만)
+    const restoredSteps = new Set<number>();
+    for (let docStep = 1; docStep <= 5; docStep++) {
+      if (restoredDocumentData[docStep]) {
+        restoredSteps.add(docStep);
+      }
+    }
+    setModifiedSteps(restoredSteps);
 
     // 4. UI 상태 업데이트 - 버전 타입에 따라 분기
     setShowVersionHistory(false);
@@ -1547,9 +1558,23 @@ export default function DocumentCreationPage({
       leftContent = (
         <button
           onClick={() => {
-            // 업로드 상태 리셋 (다시 업로드 선택 시 이전 파일이 남아있지 않도록)
+            // 업로드 상태 리셋
             removeUploadedFile(currentStep);
-            // 모드 전환 (useEffect에서 documentData에 자동 동기화됨)
+
+            // sharedData 완전 초기화 (업로드에서 추출된 모든 값 제거)
+            setSharedData({});
+
+            // 모든 step의 documentData 초기화 (업로드에서 매핑된 값 제거)
+            setDocumentData(prev => ({
+              title: prev.title,
+              1: undefined,
+              2: undefined,
+              3: undefined,
+              4: undefined,
+              5: undefined,
+            }));
+
+            // 모드 전환
             setStepModes(prev => ({ ...prev, [currentStep]: null }));
           }}
           className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors px-4 py-2 rounded-lg hover:bg-gray-100"
