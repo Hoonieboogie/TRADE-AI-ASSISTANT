@@ -444,7 +444,7 @@ export default function DocumentCreationPage({
     latestDocumentDataRef.current = documentData;
   }, [documentData]);
 
-  // 업로드 완료 시 modifiedSteps에 추가 (저장 모달에 표시되도록)
+  // 업로드 완료 시 modifiedSteps에 추가 및 isDirty 설정
   useEffect(() => {
     Object.entries(uploadStatus).forEach(([stepStr, status]) => {
       const step = Number(stepStr);
@@ -455,9 +455,11 @@ export default function DocumentCreationPage({
           newSet.add(step);
           return newSet;
         });
+        // 업로드 완료 시에도 저장 필요 상태로 설정
+        setIsDirty(true);
       }
     });
-  }, [uploadStatus, setModifiedSteps]);
+  }, [uploadStatus, setModifiedSteps, setIsDirty]);
 
   // UI State
   const [isChatOpen, setIsChatOpen] = useState(false);
