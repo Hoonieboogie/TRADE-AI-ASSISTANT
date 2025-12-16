@@ -149,44 +149,79 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
           <div className="relative" ref={filterRef}>
             <button
               onClick={() => setShowStatusFilter(!showStatusFilter)}
-              className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+              className={`
+                flex items-center justify-between gap-2 px-4 py-2 min-w-[140px]
+                bg-white border rounded-lg transition-all duration-200
+                ${showStatusFilter
+                  ? 'border-blue-500 ring-2 ring-blue-100'
+                  : 'border-gray-300 hover:border-gray-400'
+                }
+              `}
             >
-              <Filter className="w-5 h-5" />
-              <span>
-                {statusFilter === 'all' && '전체'}
-                {statusFilter === 'completed' && '완료된 작업'}
-                {statusFilter === 'in-progress' && '진행 중'}
-              </span>
-              <ChevronDown className="w-5 h-5" />
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-gray-400" />
+                <span className={`text-sm ${statusFilter === 'all' ? 'text-gray-500' : 'text-gray-900'}`}>
+                  {statusFilter === 'all' && '전체'}
+                  {statusFilter === 'completed' && '완료된 작업'}
+                  {statusFilter === 'in-progress' && '진행 중'}
+                </span>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showStatusFilter ? 'rotate-180' : ''}`}
+              />
             </button>
             {showStatusFilter && (
-              <div className="absolute top-14 left-0 w-40 bg-white rounded-lg border border-gray-200 shadow-lg overflow-hidden z-10">
+              <div className="absolute top-full left-0 mt-1 w-full min-w-[160px] bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden animate-dropdown">
                 <button
                   onClick={() => {
                     setStatusFilter('all');
                     setShowStatusFilter(false);
                   }}
-                  className="w-full p-2 text-left hover:bg-gray-50 transition-colors"
+                  className={`
+                    w-full px-4 py-2.5 text-left text-sm flex items-center justify-between
+                    transition-colors duration-150
+                    ${statusFilter === 'all'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-700 hover:bg-gray-50'
+                    }
+                  `}
                 >
-                  전체
+                  <span>전체</span>
+                  {statusFilter === 'all' && <Check className="w-4 h-4 text-blue-600" />}
                 </button>
                 <button
                   onClick={() => {
                     setStatusFilter('completed');
                     setShowStatusFilter(false);
                   }}
-                  className="w-full p-2 text-left hover:bg-gray-50 transition-colors"
+                  className={`
+                    w-full px-4 py-2.5 text-left text-sm flex items-center justify-between
+                    transition-colors duration-150
+                    ${statusFilter === 'completed'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-700 hover:bg-gray-50'
+                    }
+                  `}
                 >
-                  완료된 작업
+                  <span>완료된 작업</span>
+                  {statusFilter === 'completed' && <Check className="w-4 h-4 text-blue-600" />}
                 </button>
                 <button
                   onClick={() => {
                     setStatusFilter('in-progress');
                     setShowStatusFilter(false);
                   }}
-                  className="w-full p-2 text-left hover:bg-gray-50 transition-colors"
+                  className={`
+                    w-full px-4 py-2.5 text-left text-sm flex items-center justify-between
+                    transition-colors duration-150
+                    ${statusFilter === 'in-progress'
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-700 hover:bg-gray-50'
+                    }
+                  `}
                 >
-                  진행중인 작업
+                  <span>진행 중</span>
+                  {statusFilter === 'in-progress' && <Check className="w-4 h-4 text-blue-600" />}
                 </button>
               </div>
             )}
@@ -580,6 +615,23 @@ export default function MainPage({ onNavigate, savedDocuments, userEmployeeId, o
           </div>
         </div>
       )}
+
+      {/* 드롭다운 애니메이션 스타일 */}
+      <style>{`
+        @keyframes dropdown-appear {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-dropdown {
+          animation: dropdown-appear 0.15s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
