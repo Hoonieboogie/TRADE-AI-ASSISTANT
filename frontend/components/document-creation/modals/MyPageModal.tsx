@@ -5,6 +5,7 @@ interface MyPageModalProps {
   isOpen: boolean;
   onClose: () => void;
   userEmployeeId: string;
+  userName?: string;
   onPasswordChange: () => void;
   onLogout: () => void;
 }
@@ -13,6 +14,7 @@ export default function MyPageModal({
   isOpen,
   onClose,
   userEmployeeId,
+  userName,
   onPasswordChange,
   onLogout
 }: MyPageModalProps) {
@@ -28,7 +30,7 @@ export default function MyPageModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gray-100 px-6 py-4 flex items-center justify-between border-b border-gray-200">
-          <span className="text-gray-700 text-sm">{userEmployeeId}</span>
+          <span className="text-gray-700 text-sm">{userName || userEmployeeId}</span>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -43,7 +45,7 @@ export default function MyPageModal({
           <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full mb-4 border-4 border-blue-100">
             <User className="w-10 h-10 text-white" />
           </div>
-          <h3 className="text-gray-900 mb-2">안녕하세요, {userEmployeeId}님</h3>
+          <h3 className="text-gray-900 mb-2">안녕하세요, {userName || userEmployeeId}님</h3>
           <p className="text-gray-500 text-sm mb-6">Trade Copilot <br />무역서류작성 시스템에 오신 걸 환영합니다 :)</p>
           <button
             onClick={onPasswordChange}

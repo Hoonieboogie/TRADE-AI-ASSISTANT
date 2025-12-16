@@ -563,6 +563,7 @@ function App() {
             onLogoClick={handleCloseChat}
             userEmployeeId={userEmail}
             onLogout={handleLogout}
+            currentUser={currentUser}
           />
         </div>
       )}
@@ -584,6 +585,7 @@ function App() {
           versions={currentDocId ? savedDocuments.find(d => d.id === currentDocId)?.versions || [] : []}
           initialActiveShippingDoc={currentActiveShippingDoc}
           getDocId={getDocId}
+          currentUser={currentUser}
         />
       )}
 

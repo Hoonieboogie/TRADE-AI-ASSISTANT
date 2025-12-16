@@ -68,7 +68,8 @@ export default function DocumentCreationPage({
   onExit,
   versions = [],
   initialActiveShippingDoc,
-  getDocId
+  getDocId,
+  currentUser
 }: DocumentCreationPageProps) {
   const editorRef = useRef<ContractEditorRef>(null);
   const chatButtonRef = useRef<HTMLButtonElement>(null);
@@ -2058,6 +2059,7 @@ export default function DocumentCreationPage({
       <MyPageModal
         isOpen={showMyPageModal && !showPasswordChange}
         userEmployeeId={userEmployeeId}
+        userName={currentUser?.name}
         onClose={() => setShowMyPageModal(false)}
         onPasswordChange={() => setShowPasswordChange(true)}
         onLogout={() => setShowLogoutConfirm(true)}

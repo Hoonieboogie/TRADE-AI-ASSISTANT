@@ -2,6 +2,7 @@
 import { PageType, DocumentData } from '../../App';
 import { ContractEditorRef, FieldChange } from '../editor/ContractEditor';
 import { Version } from '../VersionHistorySidebar';
+import { User } from '../../utils/api';
 
 // Step Mode 타입
 export type StepMode = 'manual' | 'upload' | 'skip' | null;
@@ -28,6 +29,7 @@ export interface DocumentCreationPageProps {
   onRestore?: (version: Version) => void;
   initialActiveShippingDoc?: ShippingDocType | null;
   getDocId?: (step: number, shippingDoc?: ShippingDocType | null) => number | null;
+  currentUser?: User | null;
 }
 
 // Step 이름 상수
