@@ -1510,6 +1510,10 @@ export default function DocumentCreationPage({
     // 3. documentData 전체 교체 (이전 상태 무시) - 먼저 상태 설정
     setDocumentData(restoredDocumentData);
 
+    // 3.1. latestDocumentDataRef 직접 업데이트 (handleSave에서 즉시 사용 가능하도록)
+    // React 상태 업데이트는 비동기이므로, ref를 직접 업데이트해야 버전 복원 직후 저장 시 올바른 데이터 사용
+    latestDocumentDataRef.current = restoredDocumentData;
+
     // 3.5. modifiedSteps 초기화 (복원 대상 step만 포함)
     // 버전 복원은 해당 step만 "수정됨"으로 표시해야 함
     // 다른 step은 복원 시점의 데이터가 유지되지만 "새로 수정한 것"이 아님

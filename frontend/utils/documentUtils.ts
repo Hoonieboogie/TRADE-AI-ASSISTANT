@@ -36,9 +36,11 @@ export function extractDataFromContent(content: string): Record<string, string> 
   fields.forEach(field => {
     const key = field.getAttribute('data-field-id');
     const value = field.textContent;
+    const source = field.getAttribute('data-source');
 
     // placeholder가 아닌 첫 번째 값만 저장
-    if (key && value && value !== `[${key}]`) {
+    // 자동 계산 필드(data-source="auto")는 제외 - 각 문서에서 독립적으로 계산되어야 함
+    if (key && value && value !== `[${key}]` && source !== 'auto') {
       if (!newData[key]) {
         newData[key] = value;
       }
@@ -67,7 +69,10 @@ export function updateContentWithSharedData(
   let modified = false;
   fields.forEach(field => {
     const key = field.getAttribute('data-field-id');
-    if (key && sharedData[key]) {
+    const source = field.getAttribute('data-source');
+
+    // 자동 계산 필드(data-source="auto")는 건드리지 않음 - 각 문서에서 독립적으로 계산됨
+    if (key && sharedData[key] && source !== 'auto') {
       if (field.textContent !== sharedData[key]) {
         field.textContent = sharedData[key];
         field.setAttribute('data-source', 'mapped');
