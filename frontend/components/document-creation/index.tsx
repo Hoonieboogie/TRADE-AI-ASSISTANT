@@ -444,6 +444,21 @@ export default function DocumentCreationPage({
     latestDocumentDataRef.current = documentData;
   }, [documentData]);
 
+  // 업로드 완료 시 modifiedSteps에 추가 (저장 모달에 표시되도록)
+  useEffect(() => {
+    Object.entries(uploadStatus).forEach(([stepStr, status]) => {
+      const step = Number(stepStr);
+      if (status === 'ready') {
+        setModifiedSteps(prev => {
+          if (prev.has(step)) return prev;
+          const newSet = new Set(prev);
+          newSet.add(step);
+          return newSet;
+        });
+      }
+    });
+  }, [uploadStatus, setModifiedSteps]);
+
   // UI State
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatWidth, setChatWidth] = useState(400);
