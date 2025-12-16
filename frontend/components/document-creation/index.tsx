@@ -765,17 +765,31 @@ export default function DocumentCreationPage({
       uploadedFileUrls: uploadedDocumentUrls
     };
 
-    // [추가] sharedData + documentData에서 추출한 데이터 통합
+    // [추가] 순차 워크플로우에 따라 접근 가능한 step만 데이터 추출
+    // 이전 step이 완료되지 않으면 해당 step과 이후 step은 제외
+    // 이렇게 하면 복원된 오퍼가 미완성일 때 PI 데이터가 오퍼에 역매핑되지 않음
     const combinedSharedData: Record<string, string> = {};
+    let canContinue = true;
     [1, 2, 3, 4, 5].forEach(step => {
+      if (!canContinue) return;
+
       const content = newDocData[step];
       if (typeof content === 'string') {
         const data = extractDataFromContent(content);
         Object.assign(combinedSharedData, data);
+
+        // 현재 step이 미완성이면 이후 step 데이터는 추출하지 않음
+        if (!checkStepCompletion(content)) {
+          canContinue = false;
+        }
+      } else {
+        // 콘텐츠가 없으면 이후 step도 건너뜀
+        canContinue = false;
       }
     });
 
     // [추가] 모든 step에 매핑 적용 (editorRef 없어도 동작)
+    // 순서대로 적용하여 앞 step 데이터가 뒤 step에 매핑되도록 함
     [1, 2, 3, 4, 5].forEach(step => {
       const content = newDocData[step];
       if (typeof content === 'string') {
@@ -1482,12 +1496,16 @@ export default function DocumentCreationPage({
       }
     }
 
-    // 2. 복원된 모든 문서에서 sharedData 추출하여 한 번에 설정
+    // 2. 순차 워크플로우에 따라 접근 가능한 step만 sharedData 추출
+    // 이전 step이 미완성이면 해당 step과 이후 step 데이터는 제외
     // (비동기 상태 업데이트 문제 방지를 위해 extractData를 직접 호출하지 않음)
     const newSharedData: Record<string, string> = {};
     const parser = new DOMParser();
+    let canContinueExtract = true;
 
     for (let docStep = 1; docStep <= 5; docStep++) {
+      if (!canContinueExtract) break;
+
       const content = restoredDocumentData[docStep];
       if (content) {
         const doc = parser.parseFromString(content, 'text/html');
@@ -1505,6 +1523,14 @@ export default function DocumentCreationPage({
             }
           }
         });
+
+        // 현재 step이 미완성이면 이후 step 데이터는 추출하지 않음
+        if (!checkStepCompletion(content)) {
+          canContinueExtract = false;
+        }
+      } else {
+        // 콘텐츠가 없으면 이후 step도 건너뜀
+        canContinueExtract = false;
       }
     }
 
